@@ -1,0 +1,6 @@
+{
+  "name": "كيبورد الحكايات",
+  "description": "تطبيق لوحة المفاتيح والتحكم اللاسلكي الروائي - كيبورد الحكايات لهواتف الأندرويد لربط الكتابة بالتابلت ومحراب الدار.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
