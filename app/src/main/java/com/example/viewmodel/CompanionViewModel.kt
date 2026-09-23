@@ -73,6 +73,11 @@ class CompanionViewModel(application: Application) : AndroidViewModel(applicatio
         client.startPingLoop()
     }
 
+    suspend fun verifyAndSaveConnection(ip: String, pin: String): Boolean {
+        saveConnection(ip, pin)
+        return client.verifyConnection(ip, pin)
+    }
+
     fun disconnect() {
         prefs.clearConnection()
         _tabletIp.value = ""

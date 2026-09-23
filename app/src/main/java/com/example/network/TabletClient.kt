@@ -1,5 +1,6 @@
 package com.example.network
 
+import android.net.Uri
 import android.util.Log
 import com.example.data.PreferencesManager
 import kotlinx.coroutines.CoroutineScope
@@ -9,6 +10,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import okhttp3.ConnectionPool
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -18,9 +20,9 @@ import java.util.concurrent.TimeUnit
 class TabletClient(private val prefs: PreferencesManager) {
 
     private val client: OkHttpClient = OkHttpClient.Builder()
-        .connectTimeout(500, TimeUnit.MILLISECONDS)
-        .readTimeout(500, TimeUnit.MILLISECONDS)
-        .writeTimeout(500, TimeUnit.MILLISECONDS)
+        .connectTimeout(3000, TimeUnit.MILLISECONDS)
+        .readTimeout(2000, TimeUnit.MILLISECONDS)
+        .writeTimeout(2000, TimeUnit.MILLISECONDS)
         .connectionPool(ConnectionPool(5, 5, TimeUnit.MINUTES)) // Maintain persistent keep-alive connections
         .build()
 
@@ -37,22 +39,13 @@ class TabletClient(private val prefs: PreferencesManager) {
                 val ip = prefs.tabletIp
                 val pin = prefs.tabletPin
                 if (ip.isNotEmpty()) {
-                    val hostUrl = if (ip.startsWith("http://") || ip.startsWith("https://")) {
-                        ip.removeSuffix("/")
-                    } else {
-                        "http://$ip:8080"
-                    }
-                    val url = if (pin.isNotEmpty()) {
-                        "$hostUrl/api/command?action=ping&pin=${UriUtils.encode(pin)}"
-                    } else {
-                        "$hostUrl/api/command?action=ping"
-                    }
+                    val url = buildEndpointUrl(ip, "ping", pin)
                     val isAlive = pingTablet(url)
                     _isConnected.value = isAlive
                 } else {
                     _isConnected.value = false
                 }
-                delay(5000) // Ping every 5 seconds
+                delay(3000) // Ping every 3 seconds for responsive state
             }
         }
     }
@@ -62,18 +55,24 @@ class TabletClient(private val prefs: PreferencesManager) {
         pingJob = null
     }
 
-    private fun pingTablet(url: String): Boolean {
+    suspend fun verifyConnection(ip: String, pin: String): Boolean = withContext(Dispatchers.IO) {
+        val url = buildEndpointUrl(ip, "ping", pin)
+        val isAlive = pingTablet(url)
+        _isConnected.value = isAlive
+        isAlive
+    }
+
+    fun pingTablet(url: String): Boolean {
         return try {
             val request = Request.Builder()
                 .url(url)
+                .get()
                 .build()
             client.newCall(request).execute().use { response ->
                 response.isSuccessful
             }
         } catch (e: Exception) {
-            // Check if IP matches but server replies with 404 or something, still counts as connected, but let's be careful.
-            // A simple socket timeout means disconnected.
-            Log.d("TabletClient", "Ping failed: ${e.message}")
+            Log.d("TabletClient", "Ping failed for $url: ${e.message}")
             false
         }
     }
@@ -82,26 +81,11 @@ class TabletClient(private val prefs: PreferencesManager) {
         val ip = prefs.tabletIp
         if (ip.isEmpty()) return false
 
-        val hostUrl = if (ip.startsWith("http://") || ip.startsWith("https://")) {
-            ip.removeSuffix("/")
-        } else {
-            "http://$ip:8080"
-        }
-
-        // Build elegant API query
-        val queryBuilder = StringBuilder("$hostUrl/api/command?action=${UriUtils.encode(action)}")
-        if (extraParams.isNotEmpty()) {
-            // extraParams is already form-encoded from JS like "char=%D8%A7" or "delta=1"
-            queryBuilder.append("&").append(extraParams)
-        }
-        
         val pin = prefs.tabletPin
-        if (pin.isNotEmpty()) {
-            queryBuilder.append("&pin=${UriUtils.encode(pin)}")
-        }
+        val url = buildEndpointUrl(ip, action, pin, extraParams)
 
         val requestBuilder = Request.Builder()
-            .url(queryBuilder.toString())
+            .url(url)
             .get()
 
         if (pin.isNotEmpty()) {
@@ -120,9 +104,46 @@ class TabletClient(private val prefs: PreferencesManager) {
                     false
                 }
             }
-        } catch (e: IOException) {
+        } catch (e: Exception) {
             Log.e("TabletClient", "Failed to send command $action: ${e.message}")
             false
+        }
+    }
+
+    companion object {
+        /**
+         * Cleanly builds an HTTP endpoint URL without double-port bugs.
+         * Handles:
+         * - "192.168.1.15" -> "http://192.168.1.15:8080/api/command..."
+         * - "192.168.1.15:8080" -> "http://192.168.1.15:8080/api/command..."
+         * - "http://192.168.1.15:8080" -> "http://192.168.1.15:8080/api/command..."
+         * - "http://192.168.1.15:8080/" -> "http://192.168.1.15:8080/api/command..."
+         */
+        fun buildEndpointUrl(
+            rawIp: String,
+            action: String,
+            pin: String = "",
+            extraParams: String = ""
+        ): String {
+            var hostPart = rawIp.trim().removeSuffix("/")
+            if (!hostPart.startsWith("http://") && !hostPart.startsWith("https://")) {
+                hostPart = "http://$hostPart"
+            }
+
+            val uri = Uri.parse(hostPart)
+            val host = uri.host ?: hostPart.removePrefix("http://").removePrefix("https://").substringBefore(":")
+            val port = if (uri.port != -1) uri.port else 8080
+            val scheme = uri.scheme ?: "http"
+
+            val baseUrl = "$scheme://$host:$port/api/command?action=${UriUtils.encode(action)}"
+            val sb = java.lang.StringBuilder(baseUrl)
+            if (extraParams.isNotEmpty()) {
+                sb.append("&").append(extraParams)
+            }
+            if (pin.isNotEmpty()) {
+                sb.append("&pin=").append(UriUtils.encode(pin))
+            }
+            return sb.toString()
         }
     }
 }

@@ -18,6 +18,8 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
 import com.example.ui.screens.CustomizationScreen
 import com.example.ui.screens.HomeScreen
 import com.example.ui.screens.KeyboardScreen
@@ -81,16 +83,32 @@ class MainActivity : ComponentActivity() {
                                     AppScreen.SCANNER -> {
                                         ScannerScreen(
                                             onQrScanned = { qrText ->
-                                                // Parse QR string
                                                 val (ip, pin) = parseQrCodeContent(qrText)
                                                 if (ip.isNotEmpty()) {
-                                                    viewModel.saveConnection(ip, pin)
-                                                    Toast.makeText(
-                                                        this@MainActivity,
-                                                        "تم الاقتران بالتابلت بنجاح وحفظ الجلسة! 🟢",
-                                                        Toast.LENGTH_LONG
-                                                    ).show()
-                                                    currentScreen = AppScreen.KEYBOARD
+                                                    lifecycleScope.launch {
+                                                        Toast.makeText(
+                                                            this@MainActivity,
+                                                            "جارٍ التحقق والاقتران بالتابلت...",
+                                                            Toast.LENGTH_SHORT
+                                                        ).show()
+
+                                                        val isConnected = viewModel.verifyAndSaveConnection(ip, pin)
+                                                        if (isConnected) {
+                                                            Toast.makeText(
+                                                                this@MainActivity,
+                                                                "تم الاقتران بالتابلت بنجاح! 🟢",
+                                                                Toast.LENGTH_LONG
+                                                            ).show()
+                                                            currentScreen = AppScreen.KEYBOARD
+                                                        } else {
+                                                            Toast.makeText(
+                                                                this@MainActivity,
+                                                                "تم حفظ بيانات الاقتران، لكن تعذر الوصول للتابلت. تأكد من اتصالهما بنفس الشبكة ⚠️",
+                                                                Toast.LENGTH_LONG
+                                                            ).show()
+                                                            currentScreen = AppScreen.KEYBOARD
+                                                        }
+                                                    }
                                                 } else {
                                                     Toast.makeText(
                                                         this@MainActivity,
