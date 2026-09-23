@@ -22,14 +22,17 @@ import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Vibration
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ui.theme.*
@@ -73,7 +76,7 @@ fun CustomizationScreen(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(140.dp)
+                .height(180.dp)
                 .align(Alignment.TopCenter)
         ) {
             Box(
@@ -82,21 +85,12 @@ fun CustomizationScreen(
                     .background(
                         brush = Brush.verticalGradient(
                             colors = listOf(
-                                MaterialTheme.colorScheme.background.copy(alpha = 0.95f),
-                                MaterialTheme.colorScheme.background.copy(alpha = 0.45f),
-                                Color.Transparent
-                            )
-                        )
-                    )
-            )
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        brush = Brush.verticalGradient(
-                            colors = listOf(
                                 MaterialTheme.colorScheme.background,
-                                MaterialTheme.colorScheme.background.copy(alpha = 0.75f),
+                                MaterialTheme.colorScheme.background.copy(alpha = 0.98f),
+                                MaterialTheme.colorScheme.background.copy(alpha = 0.90f),
+                                MaterialTheme.colorScheme.background.copy(alpha = 0.70f),
+                                MaterialTheme.colorScheme.background.copy(alpha = 0.40f),
+                                MaterialTheme.colorScheme.background.copy(alpha = 0.15f),
                                 Color.Transparent
                             )
                         )
@@ -509,70 +503,69 @@ fun CustomizationScreen(
         }
 
         // FLOATING TOP CAPSULE HEADER SYSTEM (نظام الكبسولات العلوية الطافية)
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 16.dp, start = 16.dp, end = 16.dp)
-                .statusBarsPadding(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Standalone circular floating capsule back button
-            val backInteraction = remember { MutableInteractionSource() }
-            Box(
+        CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+            Row(
                 modifier = Modifier
-                    .size(44.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.94f))
-                    .border(
-                        width = 0.5.dp,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
-                        shape = CircleShape
-                    )
-                    .appleElasticPinch(backInteraction)
-                    .clickable(
-                        interactionSource = backInteraction,
-                        indication = null,
-                        onClick = onBack
-                    )
-                    .testTag("btn_customization_back"),
-                contentAlignment = Alignment.Center
+                    .fillMaxWidth()
+                    .padding(top = 16.dp, start = 16.dp, end = 16.dp)
+                    .statusBarsPadding(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "رجوع",
-                    tint = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
+                // Title/Brand Floating Capsule (First -> Right side)
+                Box(
+                    modifier = Modifier
+                        .height(44.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.94f))
+                        .border(
+                            width = 0.5.dp,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
+                            shape = CircleShape
+                        )
+                        .padding(horizontal = 20.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "مركز التخصيص والثيمات",
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontFamily = ThmanyahSerifDisplayFontFamily,
+                            fontWeight = FontWeight.Black,
+                            fontSize = 15.sp
+                        ),
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
 
-            // Title/Brand Floating Capsule
-            Box(
-                modifier = Modifier
-                    .height(44.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.94f))
-                    .border(
-                        width = 0.5.dp,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
-                        shape = CircleShape
+                // Standalone circular floating capsule back button (Second -> Left side)
+                val backInteraction = remember { MutableInteractionSource() }
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.94f))
+                        .border(
+                            width = 0.5.dp,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
+                            shape = CircleShape
+                        )
+                        .appleElasticPinch(backInteraction)
+                        .clickable(
+                            interactionSource = backInteraction,
+                            indication = null,
+                            onClick = onBack
+                        )
+                        .testTag("btn_customization_back"),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "رجوع",
+                        tint = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.size(20.dp)
                     )
-                    .padding(horizontal = 20.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "مركز التخصيص والثيمات",
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontFamily = ThmanyahSerifDisplayFontFamily,
-                        fontWeight = FontWeight.Black,
-                        fontSize = 15.sp
-                    ),
-                    color = MaterialTheme.colorScheme.onSurface
-                )
+                }
             }
-            
-            // Layout spacer for beautiful symmetry
-            Spacer(modifier = Modifier.size(44.dp))
         }
     }
 }

@@ -78,31 +78,31 @@ class MainActivity : ComponentActivity() {
                                     onNavigateToCustomization = { currentScreen = AppScreen.CUSTOMIZATION }
                                 )
                             }
-                            AppScreen.SCANNER -> {
-                                ScannerScreen(
-                                    onQrScanned = { qrText ->
-                                        // Parse QR string
-                                        val (ip, pin) = parseQrCodeContent(qrText)
-                                        if (ip.isNotEmpty()) {
-                                            viewModel.saveConnection(ip, pin)
-                                            Toast.makeText(
-                                                this@MainActivity,
-                                                "تم الاقتران بالتابلت بنجاح!",
-                                                Toast.LENGTH_LONG
-                                            ).show()
-                                            currentScreen = AppScreen.HOME
-                                        } else {
-                                            Toast.makeText(
-                                                this@MainActivity,
-                                                "رمز الاقتران غير صالح. الرجاء المحاولة مجدداً.",
-                                                Toast.LENGTH_LONG
-                                            ).show()
-                                            currentScreen = AppScreen.HOME
-                                        }
-                                    },
-                                    onBack = { currentScreen = AppScreen.HOME }
-                                )
-                            }
+                                    AppScreen.SCANNER -> {
+                                        ScannerScreen(
+                                            onQrScanned = { qrText ->
+                                                // Parse QR string
+                                                val (ip, pin) = parseQrCodeContent(qrText)
+                                                if (ip.isNotEmpty()) {
+                                                    viewModel.saveConnection(ip, pin)
+                                                    Toast.makeText(
+                                                        this@MainActivity,
+                                                        "تم الاقتران بالتابلت بنجاح وحفظ الجلسة! 🟢",
+                                                        Toast.LENGTH_LONG
+                                                    ).show()
+                                                    currentScreen = AppScreen.KEYBOARD
+                                                } else {
+                                                    Toast.makeText(
+                                                        this@MainActivity,
+                                                        "رمز الاقتران غير صالح. الرجاء المحاولة مجدداً.",
+                                                        Toast.LENGTH_LONG
+                                                    ).show()
+                                                    currentScreen = AppScreen.HOME
+                                                }
+                                            },
+                                            onBack = { currentScreen = AppScreen.HOME }
+                                        )
+                                    }
                             AppScreen.CUSTOMIZATION -> {
                                 CustomizationScreen(
                                     currentTheme = keyboardTheme,

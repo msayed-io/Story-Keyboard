@@ -35,11 +35,17 @@ class TabletClient(private val prefs: PreferencesManager) {
         pingJob = scope.launch {
             while (true) {
                 val ip = prefs.tabletIp
+                val pin = prefs.tabletPin
                 if (ip.isNotEmpty()) {
-                    val url = if (ip.startsWith("http://") || ip.startsWith("https://")) {
-                        "$ip/"
+                    val hostUrl = if (ip.startsWith("http://") || ip.startsWith("https://")) {
+                        ip.removeSuffix("/")
                     } else {
-                        "http://$ip:8080/"
+                        "http://$ip:8080"
+                    }
+                    val url = if (pin.isNotEmpty()) {
+                        "$hostUrl/api/command?action=ping&pin=${UriUtils.encode(pin)}"
+                    } else {
+                        "$hostUrl/api/command?action=ping"
                     }
                     val isAlive = pingTablet(url)
                     _isConnected.value = isAlive
@@ -94,10 +100,16 @@ class TabletClient(private val prefs: PreferencesManager) {
             queryBuilder.append("&pin=${UriUtils.encode(pin)}")
         }
 
-        val request = Request.Builder()
+        val requestBuilder = Request.Builder()
             .url(queryBuilder.toString())
-            .get() // Simple GET as per Javascript interface
-            .build()
+            .get()
+
+        if (pin.isNotEmpty()) {
+            requestBuilder.header("X-Tablet-PIN", pin)
+            requestBuilder.header("pin", pin)
+        }
+
+        val request = requestBuilder.build()
 
         return try {
             client.newCall(request).execute().use { response ->

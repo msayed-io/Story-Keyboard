@@ -17,6 +17,7 @@ import androidx.compose.material.icons.filled.Keyboard
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -24,10 +25,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.R
@@ -56,24 +59,9 @@ fun HomeScreen(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(140.dp)
+                .height(180.dp)
                 .align(Alignment.TopCenter)
         ) {
-            // Layer A: Ambient Top Vignette Gradient
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        brush = Brush.verticalGradient(
-                            colors = listOf(
-                                MaterialTheme.colorScheme.background.copy(alpha = 0.95f),
-                                MaterialTheme.colorScheme.background.copy(alpha = 0.45f),
-                                Color.Transparent
-                            )
-                        )
-                    )
-            )
-            // Layer B: Magnetic Dissolve
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -81,7 +69,11 @@ fun HomeScreen(
                         brush = Brush.verticalGradient(
                             colors = listOf(
                                 MaterialTheme.colorScheme.background,
-                                MaterialTheme.colorScheme.background.copy(alpha = 0.75f),
+                                MaterialTheme.colorScheme.background.copy(alpha = 0.98f),
+                                MaterialTheme.colorScheme.background.copy(alpha = 0.90f),
+                                MaterialTheme.colorScheme.background.copy(alpha = 0.70f),
+                                MaterialTheme.colorScheme.background.copy(alpha = 0.40f),
+                                MaterialTheme.colorScheme.background.copy(alpha = 0.15f),
                                 Color.Transparent
                             )
                         )
@@ -114,7 +106,7 @@ fun HomeScreen(
                     .padding(8.dp)
             ) {
                 Image(
-                    painter = painterResource(id = R.drawable.img_app_icon_new),
+                    painter = painterResource(id = R.drawable.img_app_icon),
                     contentDescription = "كيبورد الحكايات",
                     modifier = Modifier
                         .fillMaxSize()
@@ -368,37 +360,39 @@ fun HomeScreen(
         }
 
         // FLOATING TOP CAPSULE HEADER SYSTEM (نظام الكبسولات العلوية الطافية)
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 16.dp, start = 16.dp, end = 16.dp)
-                .statusBarsPadding(),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
+        CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+            Row(
                 modifier = Modifier
-                    .height(44.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.94f))
-                    .border(
-                        width = 0.5.dp,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
-                        shape = CircleShape
-                    )
-                    .padding(horizontal = 24.dp),
-                contentAlignment = Alignment.Center
+                    .fillMaxWidth()
+                    .padding(top = 16.dp, start = 16.dp, end = 16.dp)
+                    .statusBarsPadding(),
+                horizontalArrangement = Arrangement.Start,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = "كِيبُورد الحِكَايَاتِ",
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontFamily = ThmanyahSerifDisplayFontFamily,
-                        fontWeight = FontWeight.Black,
-                        fontSize = 17.sp,
-                        letterSpacing = 0.5.sp
-                    ),
-                    color = MaterialTheme.colorScheme.primary
-                )
+                Box(
+                    modifier = Modifier
+                        .height(44.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.94f))
+                        .border(
+                            width = 0.5.dp,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
+                            shape = CircleShape
+                        )
+                        .padding(horizontal = 24.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "كِيبُورد الحِكَايَاتِ",
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontFamily = ThmanyahSerifDisplayFontFamily,
+                            fontWeight = FontWeight.Black,
+                            fontSize = 17.sp,
+                            letterSpacing = 0.5.sp
+                        ),
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
             }
         }
     }
