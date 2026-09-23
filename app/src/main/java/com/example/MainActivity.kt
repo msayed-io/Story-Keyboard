@@ -77,7 +77,15 @@ class MainActivity : ComponentActivity() {
                                     savedIp = tabletIp,
                                     onNavigateToKeyboard = { currentScreen = AppScreen.KEYBOARD },
                                     onNavigateToScanner = { currentScreen = AppScreen.SCANNER },
-                                    onNavigateToCustomization = { currentScreen = AppScreen.CUSTOMIZATION }
+                                    onNavigateToCustomization = { currentScreen = AppScreen.CUSTOMIZATION },
+                                    onDisconnect = {
+                                        viewModel.disconnect()
+                                        Toast.makeText(
+                                            this@MainActivity,
+                                            "تم قطع الاتصال وإنهاء الجلسة بنجاح 🔴",
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                    }
                                 )
                             }
                                     AppScreen.SCANNER -> {

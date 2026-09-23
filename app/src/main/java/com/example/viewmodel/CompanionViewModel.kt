@@ -79,11 +79,16 @@ class CompanionViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     fun disconnect() {
-        prefs.clearConnection()
-        _tabletIp.value = ""
-        _tabletPin.value = ""
-        client.stopPingLoop()
-        client.startPingLoop() // Will evaluate empty IP and set isConnected to false
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                client.sendCommand("disconnect")
+            } catch (_: Exception) {}
+            prefs.clearConnection()
+            _tabletIp.value = ""
+            _tabletPin.value = ""
+            client.stopPingLoop()
+            client.startPingLoop()
+        }
     }
 
     fun setHapticIntensity(intensity: Int) {
