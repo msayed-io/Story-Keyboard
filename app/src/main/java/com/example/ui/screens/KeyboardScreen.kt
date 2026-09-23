@@ -53,6 +53,11 @@ fun KeyboardScreen(
     val context = LocalContext.current
     val webViewRef = remember { mutableStateOf<WebView?>(null) }
     
+    val currentBgBase64 by rememberUpdatedState(bgBase64)
+    val currentTheme by rememberUpdatedState(theme)
+    val currentOpacity by rememberUpdatedState(opacity)
+    val currentBlur by rememberUpdatedState(blur)
+    
     // Immersive landscape locks
     DisposableEffect(Unit) {
         val activity = context as? Activity
@@ -174,7 +179,11 @@ fun KeyboardScreen(
                             onToggleFullscreen = {
                                 // Handled natively or ignored in immersive landscape
                             },
-                            onExit = onBack
+                            onExit = onBack,
+                            getCustomBgProvider = { currentBgBase64 },
+                            getThemeProvider = { currentTheme },
+                            getOpacityProvider = { currentOpacity },
+                            getBlurProvider = { currentBlur }
                         ),
                         "AndroidInterface"
                     )
@@ -193,55 +202,12 @@ private fun injectSettings(webView: WebView, theme: String, opacity: Float, blur
         // Set HTML theme attribute
         webView.evaluateJavascript("document.documentElement.setAttribute('data-theme', '$theme');", null)
         
-        // Inject background style sheet
+        // Invoke applyCustomBackground using native AndroidInterface bridge to stream base64 safely
         val jsCode = """
-            (function() {
-                var style = document.getElementById('custom-bg-style');
-                if (!style) {
-                    style = document.createElement('style');
-                    style.id = 'custom-bg-style';
-                    document.head.appendChild(style);
-                }
-                var bgBase64 = "$bgBase64";
-                var theme = "$theme";
-                var opacity = $opacity;
-                var blur = $blur;
-                
-                var rgb = "234, 230, 210"; // Light champagne paper
-                if (theme === 'night_whisper') rgb = "17, 23, 24";
-                if (theme === 'apple_dark') rgb = "0, 0, 0";
-                if (theme === 'light_ink') rgb = "255, 255, 255";
-                
-                if (theme === 'light_ink') {
-                   document.documentElement.style.setProperty('--bg', '#FFFFFF');
-                   document.documentElement.style.setProperty('--panel-key', '#F0F0F0');
-                   document.documentElement.style.setProperty('--text', '#000000');
-                } else if (theme === 'royal_classic') {
-                   document.documentElement.style.setProperty('--bg', '#EAE6D2');
-                   document.documentElement.style.setProperty('--panel-key', '#F5EBD9');
-                   document.documentElement.style.setProperty('--text', '#121A1B');
-                }
-
-                if (bgBase64 && bgBase64.length > 0) {
-                    style.innerHTML = `
-                        body {
-                            background-image: url("data:image/jpeg;base64,` + bgBase64 + `") !important;
-                            background-size: cover !important;
-                            background-position: center !important;
-                        }
-                        .app {
-                            background: transparent !important;
-                        }
-                        .bar, .deck {
-                            background: rgba(` + rgb + `, ` + opacity + `) !important;
-                            backdrop-filter: blur(` + blur + `px) !important;
-                            -webkit-backdrop-filter: blur(` + blur + `px) !important;
-                        }
-                    `;
-                } else {
-                    style.innerHTML = "";
-                }
-            })();
+            if (window.applyCustomBackground) {
+                var bg = (window.AndroidInterface && window.AndroidInterface.getCustomBg) ? window.AndroidInterface.getCustomBg() : "";
+                window.applyCustomBackground(bg, '$theme', $opacity, $blur);
+            }
         """.trimIndent()
         webView.evaluateJavascript(jsCode, null)
     }
@@ -268,8 +234,24 @@ class WebAppInterface(
     private val onVibrate: (Int) -> Unit,
     private val onSpeech: () -> Unit,
     private val onToggleFullscreen: () -> Unit,
-    private val onExit: () -> Unit
+    private val onExit: () -> Unit,
+    private val getCustomBgProvider: () -> String = { "" },
+    private val getThemeProvider: () -> String = { "royal_classic" },
+    private val getOpacityProvider: () -> Float = { 0.85f },
+    private val getBlurProvider: () -> Int = { 0 }
 ) {
+    @JavascriptInterface
+    fun getCustomBg(): String = getCustomBgProvider()
+
+    @JavascriptInterface
+    fun getTheme(): String = getThemeProvider()
+
+    @JavascriptInterface
+    fun getOpacity(): Float = getOpacityProvider()
+
+    @JavascriptInterface
+    fun getBlur(): Int = getBlurProvider()
+
     @JavascriptInterface
     fun sendCommand(action: String, extraParams: String) {
         onCommand(action, extraParams)

@@ -142,7 +142,7 @@ class CompanionViewModel(application: Application) : AndroidViewModel(applicatio
                         val outputStream = ByteArrayOutputStream()
                         scaledBitmap.compress(Bitmap.CompressFormat.JPEG, 75, outputStream)
                         val bytes = outputStream.toByteArray()
-                        val base64String = Base64.encodeToString(bytes, Base64.DEFAULT).replace("\n", "").replace("\r", "")
+                        val base64String = Base64.encodeToString(bytes, Base64.NO_WRAP)
                         
                         prefs.keyboardBgBase64 = base64String
                         _keyboardBgBase64.value = base64String

@@ -350,6 +350,72 @@
     transform-origin: 50px 50px;
     animation: rotateDevice 2.8s cubic-bezier(0.65, 0, 0.35, 1) infinite;
   }
+
+  /* ---------- Custom Background Wallpaper Mode ---------- */
+  body.has-custom-bg {
+    background-size: cover !important;
+    background-position: center !important;
+    background-repeat: no-repeat !important;
+    background-attachment: fixed !important;
+  }
+  body.has-custom-bg .linen-texture {
+    display: none !important;
+  }
+  body.has-custom-bg .app {
+    background: transparent !important;
+  }
+  body.has-custom-bg .bar {
+    background: rgba(var(--overlay-rgb, 18, 26, 27), 0.75) !important;
+    backdrop-filter: blur(16px) !important;
+    -webkit-backdrop-filter: blur(16px) !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.12) !important;
+  }
+  body.has-custom-bg .deck {
+    background: rgba(var(--overlay-rgb, 18, 26, 27), var(--overlay-opacity, 0.45)) !important;
+    backdrop-filter: blur(var(--overlay-blur, 8px)) !important;
+    -webkit-backdrop-filter: blur(var(--overlay-blur, 8px)) !important;
+  }
+  body.has-custom-bg .key,
+  body.has-custom-bg .tkey,
+  body.has-custom-bg .lkey,
+  body.has-custom-bg .bkey,
+  body.has-custom-bg .spacebar,
+  body.has-custom-bg .ctrl-btn {
+    background: rgba(255, 255, 255, 0.22) !important;
+    backdrop-filter: blur(8px) !important;
+    -webkit-backdrop-filter: blur(8px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.28) !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25) !important;
+    color: #FFFFFF !important;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6) !important;
+  }
+  :root[data-theme="royal_classic"] body.has-custom-bg .key,
+  :root[data-theme="royal_classic"] body.has-custom-bg .tkey,
+  :root[data-theme="royal_classic"] body.has-custom-bg .lkey,
+  :root[data-theme="royal_classic"] body.has-custom-bg .bkey,
+  :root[data-theme="royal_classic"] body.has-custom-bg .spacebar {
+    background: rgba(255, 255, 255, 0.35) !important;
+    border: 1px solid rgba(255, 255, 255, 0.45) !important;
+    color: #121A1B !important;
+    text-shadow: 0 1px 1px rgba(255, 255, 255, 0.6) !important;
+  }
+  body.has-custom-bg .key.pressed,
+  body.has-custom-bg .tkey.pressed,
+  body.has-custom-bg .lkey.pressed,
+  body.has-custom-bg .bkey.pressed,
+  body.has-custom-bg .spacebar.pressed,
+  body.has-custom-bg .ctrl-btn.pressed {
+    background: var(--accent) !important;
+    color: #FFFFFF !important;
+    transform: translateY(1px) !important;
+  }
+  body.has-custom-bg .key .hint {
+    color: rgba(255, 255, 255, 0.75) !important;
+    text-shadow: none !important;
+  }
+  :root[data-theme="royal_classic"] body.has-custom-bg .key .hint {
+    color: rgba(18, 26, 27, 0.65) !important;
+  }
 </style>
 </head>
 <body>
@@ -976,10 +1042,53 @@
     micBtn.title = 'الاملاء الصوتي غير مدعوم في هذا المتصفح';
   }
 
+  /* ---------------- Custom Background Wallpaper Support ---------------- */
+  window.applyCustomBackground = function(bgBase64, theme, opacity, blur) {
+    var dt = theme || document.documentElement.getAttribute('data-theme') || 'royal_classic';
+    document.documentElement.setAttribute('data-theme', dt);
+    
+    var rgb = "18, 26, 27";
+    if (dt === 'night_whisper') rgb = "17, 23, 24";
+    else if (dt === 'apple_dark') rgb = "0, 0, 0";
+    else if (dt === 'royal_classic') rgb = "234, 230, 210";
+
+    var op = (typeof opacity === 'number') ? opacity : 0.45;
+    var bl = (typeof blur === 'number') ? blur : 8;
+
+    document.documentElement.style.setProperty('--overlay-rgb', rgb);
+    document.documentElement.style.setProperty('--overlay-opacity', op);
+    document.documentElement.style.setProperty('--overlay-blur', bl + 'px');
+
+    if (bgBase64 && bgBase64.length > 50) {
+      document.body.classList.add('has-custom-bg');
+      var cleanBg = bgBase64.replace(/\s+/g, '');
+      document.body.style.backgroundImage = 'url("data:image/jpeg;base64,' + cleanBg + '")';
+    } else {
+      document.body.classList.remove('has-custom-bg');
+      document.body.style.backgroundImage = '';
+    }
+    refreshThemeIcon();
+  };
+
+  function initAndroidSettings() {
+    try {
+      if (window.AndroidInterface) {
+        var bg = window.AndroidInterface.getCustomBg ? window.AndroidInterface.getCustomBg() : "";
+        var th = window.AndroidInterface.getTheme ? window.AndroidInterface.getTheme() : "royal_classic";
+        var op = window.AndroidInterface.getOpacity ? window.AndroidInterface.getOpacity() : 0.85;
+        var bl = window.AndroidInterface.getBlur ? window.AndroidInterface.getBlur() : 0;
+        window.applyCustomBackground(bg, th, op, bl);
+      }
+    } catch(e) {
+      console.warn("initAndroidSettings error:", e);
+    }
+  }
+
   /* ---------------- Init ---------------- */
   renderTashkeel();
   renderLiterary();
   renderLetters();
+  initAndroidSettings();
 })();
 </script>
 </body>

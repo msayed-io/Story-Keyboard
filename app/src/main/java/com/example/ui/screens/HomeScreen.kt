@@ -187,7 +187,7 @@ fun HomeScreen(
                 }
 
                 // ---------------------------------------------------------
-                // 1. LIVE CONNECTION STATUS CARD (بطاقة حالة الاتصال الملكية)
+                // 1. LIVE CONNECTION STATUS CAPSULE (بطاقة حالة الاتصال الكبسولية الاحترافية)
                 // ---------------------------------------------------------
                 val statusCardBg = if (isAppleDark) Color.White.copy(alpha = 0.04f) else MaterialTheme.colorScheme.surface
                 val statusCardBorder = if (isConnected) {
@@ -200,132 +200,133 @@ fun HomeScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .testTag("connection_status_card"),
-                    shape = RoundedCornerShape(24.dp),
+                    shape = RoundedCornerShape(20.dp),
                     colors = CardDefaults.cardColors(containerColor = statusCardBg),
                     border = statusCardBorder,
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                 ) {
-                    Column(
+                    Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(20.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        // Status Header Pill
+                        // Status Indicator & Short Text
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.weight(1f, fill = false)
                         ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                // LED Indicator
+                            // Glowing Pulse LED
+                            Box(
+                                contentAlignment = Alignment.Center,
+                                modifier = Modifier.size(16.dp)
+                            ) {
                                 Box(
                                     modifier = Modifier
-                                        .size(10.dp)
+                                        .size(14.dp)
+                                        .clip(CircleShape)
+                                        .background(
+                                            if (isConnected) Color(0xFF10B981).copy(alpha = 0.25f)
+                                            else Color(0xFFEF4444).copy(alpha = 0.25f)
+                                        )
+                                )
+                                Box(
+                                    modifier = Modifier
+                                        .size(7.dp)
                                         .clip(CircleShape)
                                         .background(
                                             if (isConnected) Color(0xFF10B981) else Color(0xFFEF4444)
                                         )
                                 )
-                                Spacer(modifier = Modifier.width(8.dp))
+                            }
+
+                            Spacer(modifier = Modifier.width(10.dp))
+
+                            Column {
                                 Text(
-                                    text = if (isConnected) "موصول بالتابلت بنجاح" else "غير موصول بالتابلت",
-                                    fontSize = 15.sp,
+                                    text = if (isConnected) "موصول بالتابلت" else "غير موصول",
+                                    fontSize = 14.sp,
                                     fontWeight = FontWeight.Bold,
                                     fontFamily = ThmanyahSansFontFamily,
                                     color = if (isConnected) Color(0xFF10B981) else MaterialTheme.colorScheme.onSurface
                                 )
-                            }
-
-                            // IP Badge (if present)
-                            if (savedIp.isNotEmpty()) {
-                                Box(
-                                    modifier = Modifier
-                                        .clip(CircleShape)
-                                        .background(
-                                            if (isConnected) Color(0xFF10B981).copy(alpha = 0.12f)
-                                            else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)
-                                        )
-                                        .padding(horizontal = 10.dp, vertical = 4.dp)
-                                ) {
-                                    Text(
-                                        text = savedIp,
-                                        fontSize = 11.sp,
-                                        fontFamily = ThmanyahSansFontFamily,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = if (isConnected) Color(0xFF10B981) else MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
+                                Text(
+                                    text = if (isConnected && savedIp.isNotEmpty()) savedIp else "امسحي رمز الـ QR للبدء",
+                                    fontSize = 11.sp,
+                                    fontFamily = ThmanyahSansFontFamily,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                                )
                             }
                         }
 
-                        Spacer(modifier = Modifier.height(10.dp))
-
-                        // Descriptive Context Message
-                        Text(
-                            text = if (isConnected) {
-                                "محراب الدار مستعد لتلقي حروفكِ وروايتكِ بلمح البصر دون أي تأخير ❦"
-                            } else {
-                                "افتحي نافذة كيبورد الكاتبة على التابلت وامسحي رمز الـ QR للبدء"
-                            },
-                            fontSize = 12.sp,
-                            fontFamily = ThmanyahSansFontFamily,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textAlign = TextAlign.Start,
-                            modifier = Modifier.fillMaxWidth(),
-                            lineHeight = 18.sp
-                        )
-
-                        // Disconnect Action Button (زر قطع الاتصال الصريح)
-                        if (isConnected || savedIp.isNotEmpty()) {
-                            Spacer(modifier = Modifier.height(14.dp))
-                            HorizontalDivider(
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f),
-                                thickness = 0.5.dp
-                            )
-                            Spacer(modifier = Modifier.height(10.dp))
-
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.End,
-                                verticalAlignment = Alignment.CenterVertically
+                        // Compact Inline Action Button (قطع الاتصال or مسح الرمز)
+                        if (isConnected) {
+                            val disconnectInteraction = remember { MutableInteractionSource() }
+                            OutlinedButton(
+                                onClick = onDisconnect,
+                                modifier = Modifier
+                                    .height(34.dp)
+                                    .appleElasticPinch(disconnectInteraction)
+                                    .testTag("btn_disconnect_session"),
+                                shape = RoundedCornerShape(17.dp),
+                                border = BorderStroke(0.8.dp, Color(0xFFEF4444).copy(alpha = 0.35f)),
+                                colors = ButtonDefaults.outlinedButtonColors(
+                                    containerColor = Color(0xFFEF4444).copy(alpha = 0.08f),
+                                    contentColor = Color(0xFFEF4444)
+                                ),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+                                interactionSource = disconnectInteraction
                             ) {
-                                val disconnectInteraction = remember { MutableInteractionSource() }
-                                OutlinedButton(
-                                    onClick = onDisconnect,
-                                    modifier = Modifier
-                                        .height(38.dp)
-                                        .appleElasticPinch(disconnectInteraction)
-                                        .testTag("btn_disconnect_session"),
-                                    shape = RoundedCornerShape(20.dp),
-                                    border = BorderStroke(1.dp, Color(0xFFEF4444).copy(alpha = 0.35f)),
-                                    colors = ButtonDefaults.outlinedButtonColors(
-                                        containerColor = Color(0xFFEF4444).copy(alpha = 0.08f),
-                                        contentColor = Color(0xFFEF4444)
-                                    ),
-                                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 0.dp),
-                                    interactionSource = disconnectInteraction
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.WifiOff,
-                                        contentDescription = "قطع الاتصال",
-                                        modifier = Modifier.size(15.dp),
-                                        tint = Color(0xFFEF4444)
-                                    )
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text(
-                                        text = "قطع الاتصال وإنهاء الجلسة",
-                                        fontSize = 12.sp,
-                                        fontFamily = ThmanyahSansFontFamily,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                }
+                                Icon(
+                                    imageVector = Icons.Default.WifiOff,
+                                    contentDescription = "قطع",
+                                    modifier = Modifier.size(13.dp),
+                                    tint = Color(0xFFEF4444)
+                                )
+                                Spacer(modifier = Modifier.width(5.dp))
+                                Text(
+                                    text = "قطع الاتصال",
+                                    fontSize = 11.sp,
+                                    fontFamily = ThmanyahSansFontFamily,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        } else {
+                            val scanInteraction = remember { MutableInteractionSource() }
+                            Button(
+                                onClick = onNavigateToScanner,
+                                modifier = Modifier
+                                    .height(34.dp)
+                                    .appleElasticPinch(scanInteraction)
+                                    .testTag("btn_quick_scan"),
+                                shape = RoundedCornerShape(17.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                                    contentColor = MaterialTheme.colorScheme.primary
+                                ),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+                                interactionSource = scanInteraction
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.CameraAlt,
+                                    contentDescription = "مسح",
+                                    modifier = Modifier.size(13.dp),
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                                Spacer(modifier = Modifier.width(5.dp))
+                                Text(
+                                    text = "مسح الرمز",
+                                    fontSize = 11.sp,
+                                    fontFamily = ThmanyahSansFontFamily,
+                                    fontWeight = FontWeight.Bold
+                                )
                             }
                         }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(22.dp))
+                Spacer(modifier = Modifier.height(20.dp))
 
                 // ---------------------------------------------------------
                 // 2. HERO ACTION: OPEN KEYBOARD (لوحة مفاتيح الرواية)
