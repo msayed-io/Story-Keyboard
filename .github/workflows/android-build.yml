@@ -54,19 +54,6 @@ jobs:
           test -n "$RELEASE_STORE_PASSWORD" || { echo "Missing RELEASE_STORE_PASSWORD"; exit 1; }
           test -n "$RELEASE_KEY_PASSWORD" || { echo "Missing RELEASE_KEY_PASSWORD"; exit 1; }
           test -n "$RELEASE_KEY_ALIAS" || { echo "Missing RELEASE_KEY_ALIAS"; exit 1; }
-          NORMALIZED_LENGTH="$(printf '%s' "$RELEASE_KEYSTORE_BASE64" | tr -d '[:space:]' | wc -c | tr -d ' ')"
-          VALID_LENGTH="$(printf '%s' "$RELEASE_KEYSTORE_BASE64" | tr -d '[:space:]' | LC_ALL=C tr -cd 'A-Za-z0-9+/=' | wc -c | tr -d ' ')"
-          INVALID_COUNT="$((NORMALIZED_LENGTH - VALID_LENGTH))"
-          NORMALIZED_B64="$(printf '%s' "$RELEASE_KEYSTORE_BASE64" | tr -d '[:space:]')"
-          BASE_PART="${NORMALIZED_B64%%=*}"
-          PADDING_PART="${NORMALIZED_B64:${#BASE_PART}}"
-          PADDING_COUNT="$(printf '%s' "$PADDING_PART" | tr -cd '=' | wc -c | tr -d ' ')"
-          PADDING_ONLY="false"
-          case "$PADDING_PART" in
-            ''|'='|'==') PADDING_ONLY="true" ;;
-          esac
-          printf 'Keystore Base64 diagnostics: normalized_length=%s modulo_4=%s invalid_character_count=%s padding_count=%s padding_only_at_end=%s\n' \
-            "$NORMALIZED_LENGTH" "$((NORMALIZED_LENGTH % 4))" "$INVALID_COUNT" "$PADDING_COUNT" "$PADDING_ONLY"
           echo "Release signing secrets are present."
 
       - name: Restore and verify release keystore
@@ -76,7 +63,8 @@ jobs:
           RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
         run: |
           set -euo pipefail
-          KEYSTORE_B64="$(printf '%s' "$RELEASE_KEYSTORE_BASE64" | tr -d '[:space:]')"
+          RAW_KEYSTORE_B64="$(printf '%s' "$RELEASE_KEYSTORE_BASE64" | tr -d '[:space:]')"
+          KEYSTORE_B64="${RAW_KEYSTORE_B64%%=*}"
           case "$(( ${#KEYSTORE_B64} % 4 ))" in
             0) ;;
             2) KEYSTORE_B64="${KEYSTORE_B64}==" ;;
