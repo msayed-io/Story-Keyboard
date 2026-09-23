@@ -83,6 +83,21 @@ jobs:
       - name: Run unit tests
         run: ./gradlew --no-daemon testDebugUnitTest
 
+      - name: Create CI debug keystore
+        run: |
+          set -euo pipefail
+          keytool -genkeypair -v \
+            -keystore debug.keystore \
+            -storetype PKCS12 \
+            -alias androiddebugkey \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -storepass android \
+            -keypass android \
+            -dname "CN=Android Debug, O=Android, C=US" >/dev/null
+          chmod 600 debug.keystore
+
       - name: Build release and debug APKs
         env:
           KEYSTORE_PATH: release.keystore
