@@ -114,7 +114,7 @@ fun HomeScreen(
                     .padding(8.dp)
             ) {
                 Image(
-                    painter = painterResource(id = R.drawable.img_app_icon),
+                    painter = painterResource(id = R.drawable.img_app_icon_new),
                     contentDescription = "كيبورد الحكايات",
                     modifier = Modifier
                         .fillMaxSize()
