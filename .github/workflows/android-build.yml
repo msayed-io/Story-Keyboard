@@ -63,7 +63,14 @@ jobs:
           RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
         run: |
           set -euo pipefail
-          printf '%s' "$RELEASE_KEYSTORE_BASE64" | base64 --decode > app/release.keystore
+          KEYSTORE_B64="$(printf '%s' "$RELEASE_KEYSTORE_BASE64" | tr -d '[:space:]')"
+          case "$(( ${#KEYSTORE_B64} % 4 ))" in
+            0) ;;
+            2) KEYSTORE_B64="${KEYSTORE_B64}==" ;;
+            3) KEYSTORE_B64="${KEYSTORE_B64}=" ;;
+            *) echo "Invalid RELEASE_KEYSTORE_BASE64 length."; exit 1 ;;
+          esac
+          printf '%s' "$KEYSTORE_B64" | base64 --decode --strict > app/release.keystore
           chmod 600 app/release.keystore
           keytool -list \
             -keystore app/release.keystore \
