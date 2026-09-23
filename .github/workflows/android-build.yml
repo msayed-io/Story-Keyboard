@@ -70,7 +70,8 @@ jobs:
             3) KEYSTORE_B64="${KEYSTORE_B64}=" ;;
             *) echo "Invalid RELEASE_KEYSTORE_BASE64 length."; exit 1 ;;
           esac
-          printf '%s' "$KEYSTORE_B64" | base64 --decode --strict > app/release.keystore
+          printf '%s' "$KEYSTORE_B64" | base64 --decode > app/release.keystore
+          test -s app/release.keystore
           chmod 600 app/release.keystore
           keytool -list \
             -keystore app/release.keystore \
