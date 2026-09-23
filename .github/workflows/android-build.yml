@@ -40,6 +40,7 @@ jobs:
       - name: Verify toolchain
         run: |
           java -version
+          chmod +x gradlew
           ./gradlew --version
 
       - name: Verify release signing secrets
