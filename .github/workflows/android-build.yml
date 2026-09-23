@@ -57,8 +57,16 @@ jobs:
           NORMALIZED_LENGTH="$(printf '%s' "$RELEASE_KEYSTORE_BASE64" | tr -d '[:space:]' | wc -c | tr -d ' ')"
           VALID_LENGTH="$(printf '%s' "$RELEASE_KEYSTORE_BASE64" | tr -d '[:space:]' | LC_ALL=C tr -cd 'A-Za-z0-9+/=' | wc -c | tr -d ' ')"
           INVALID_COUNT="$((NORMALIZED_LENGTH - VALID_LENGTH))"
-          printf 'Keystore Base64 diagnostics: normalized_length=%s modulo_4=%s invalid_character_count=%s\n' \
-            "$NORMALIZED_LENGTH" "$((NORMALIZED_LENGTH % 4))" "$INVALID_COUNT"
+          NORMALIZED_B64="$(printf '%s' "$RELEASE_KEYSTORE_BASE64" | tr -d '[:space:]')"
+          BASE_PART="${NORMALIZED_B64%%=*}"
+          PADDING_PART="${NORMALIZED_B64:${#BASE_PART}}"
+          PADDING_COUNT="$(printf '%s' "$PADDING_PART" | tr -cd '=' | wc -c | tr -d ' ')"
+          PADDING_ONLY="false"
+          case "$PADDING_PART" in
+            ''|'='|'==') PADDING_ONLY="true" ;;
+          esac
+          printf 'Keystore Base64 diagnostics: normalized_length=%s modulo_4=%s invalid_character_count=%s padding_count=%s padding_only_at_end=%s\n' \
+            "$NORMALIZED_LENGTH" "$((NORMALIZED_LENGTH % 4))" "$INVALID_COUNT" "$PADDING_COUNT" "$PADDING_ONLY"
           echo "Release signing secrets are present."
 
       - name: Restore and verify release keystore
