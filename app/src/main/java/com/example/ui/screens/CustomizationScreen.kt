@@ -98,18 +98,18 @@ fun CustomizationScreen(
             )
         }
 
-        // Scrollable Settings Cards Container
+        // Scrollable Settings Cards Container مع توزيع رأسي انسيابي ومريح
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(scrollState)
                 .padding(horizontal = 20.dp)
-                .padding(top = 100.dp, bottom = 48.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp)
+                .padding(top = 108.dp, bottom = 56.dp),
+            verticalArrangement = Arrangement.spacedBy(22.dp)
         ) {
             // SECTION 1: Built-in Themes Selection (Segmented Switcher Card)
             Card(
-                shape = RoundedCornerShape(32.dp),
+                shape = RoundedCornerShape(30.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)),
                 modifier = Modifier
@@ -117,13 +117,13 @@ fun CustomizationScreen(
                     .testTag("settings_card_theme")
             ) {
                 Column(
-                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 20.dp)
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 22.dp)
                 ) {
                     // Upper row: Title and currently active theme name
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(bottom = 14.dp, start = 4.dp, end = 4.dp),
+                            .padding(bottom = 16.dp, start = 4.dp, end = 4.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -132,7 +132,7 @@ fun CustomizationScreen(
                             fontSize = 16.sp,
                             fontFamily = ThmanyahSansFontFamily,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary // Accent Gold
+                            color = MaterialTheme.colorScheme.primary
                         )
                         
                         val activeThemeName = when (currentTheme) {
@@ -176,7 +176,7 @@ fun CustomizationScreen(
                                 .clickable(
                                     interactionSource = button3Interaction,
                                     indication = null
-                               ) { onThemeChanged("royal_classic") },
+                                ) { onThemeChanged("royal_classic") },
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
@@ -219,7 +219,7 @@ fun CustomizationScreen(
                             )
                         }
 
-                        // Button 1: داكن آبل (Placed on the left in RTL Row)
+                        // Button 1: • آبل داكن (Placed on the left in RTL Row)
                         val button1Interaction = remember { MutableInteractionSource() }
                         val isSelected1 = currentTheme == "apple_dark"
                         Box(
@@ -227,7 +227,7 @@ fun CustomizationScreen(
                                 .weight(1f)
                                 .fillMaxHeight()
                                 .clip(CircleShape)
-                                .background(if (isSelected1) Color(0xFF2C2C2E) else Color.Transparent)
+                                .background(if (isSelected1) MaterialTheme.colorScheme.primary else Color.Transparent)
                                 .appleElasticPinch(button1Interaction)
                                 .clickable(
                                     interactionSource = button1Interaction,
@@ -236,7 +236,7 @@ fun CustomizationScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = "داكن آبل",
+                                text = "• آبل داكن",
                                 color = if (isSelected1) Color.White else {
                                     if (currentTheme == "royal_classic") Color(0xA6121A1B) else Color(0xA6F5F5F5)
                                 },
@@ -250,16 +250,17 @@ fun CustomizationScreen(
                 }
             }
 
-            // SECTION 2: Custom Background Wallpaper Picker
-            val wallpaperCardInteraction = remember { MutableInteractionSource() }
+            // SECTION 2: Custom Wallpaper Background Integration Card
             Card(
-                shape = RoundedCornerShape(28.dp),
+                shape = RoundedCornerShape(30.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)),
-                modifier = Modifier.fillMaxWidth()
+                border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("settings_card_custom_bg")
             ) {
                 Column(
-                    modifier = Modifier.padding(20.dp)
+                    modifier = Modifier.padding(24.dp)
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -267,13 +268,13 @@ fun CustomizationScreen(
                     ) {
                         Icon(
                             imageVector = Icons.Default.Image,
-                            contentDescription = "خلفية مخصصة",
+                            contentDescription = "صورة الخلفية",
                             tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(22.dp)
                         )
                         Spacer(modifier = Modifier.width(10.dp))
                         Text(
-                            text = "خلفية لوحة المفاتيح المخصصة",
+                            text = "خلفية الكيبورد المخصصة",
                             fontSize = 16.sp,
                             fontFamily = ThmanyahSansFontFamily,
                             fontWeight = FontWeight.Bold,
@@ -281,22 +282,13 @@ fun CustomizationScreen(
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(10.dp))
-                    Text(
-                        text = "يمكنكِ اختيار أي صورة من ألبوم صوركِ لتكون خلفية لوحة مفاتيح الرواية اللاسلكية.",
-                        fontSize = 13.sp,
-                        fontFamily = ThmanyahSansFontFamily,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        lineHeight = 18.sp
-                    )
-
                     Spacer(modifier = Modifier.height(18.dp))
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // Select Background Button
                         val selectBgInteraction = remember { MutableInteractionSource() }
                         Button(
                             onClick = {
@@ -361,7 +353,7 @@ fun CustomizationScreen(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    text = "مدى شفافية الأزرار الملعونة",
+                                    text = "مدى شفافية وتعتيم أزرار اللوحة",
                                     fontSize = 14.sp,
                                     fontFamily = ThmanyahSansFontFamily,
                                     fontWeight = FontWeight.Bold,
@@ -432,15 +424,14 @@ fun CustomizationScreen(
             }
 
             // SECTION 3: Haptic Feedback Controls
-            val hapticCardInteraction = remember { MutableInteractionSource() }
             Card(
-                shape = RoundedCornerShape(28.dp),
+                shape = RoundedCornerShape(30.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(
-                    modifier = Modifier.padding(20.dp)
+                    modifier = Modifier.padding(24.dp)
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -462,7 +453,7 @@ fun CustomizationScreen(
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(18.dp))
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -500,9 +491,21 @@ fun CustomizationScreen(
                     )
                 }
             }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Literary Signature Footer
+            Text(
+                text = "دار الحكايات ❦ تخصيص لوحة مفاتيح الرواية",
+                fontSize = 12.sp,
+                fontFamily = ThmanyahSansFontFamily,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f),
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth()
+            )
         }
 
-        // FLOATING TOP CAPSULE HEADER SYSTEM (نظام الكبسولات العلوية الطافية)
+        // FLOATING TOP CAPSULE HEADER SYSTEM (نظام الكبسولات العلوية الفاخرة)
         CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
             Row(
                 modifier = Modifier
