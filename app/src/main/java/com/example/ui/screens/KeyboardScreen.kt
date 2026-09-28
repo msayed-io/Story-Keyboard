@@ -159,10 +159,10 @@ fun KeyboardScreen(
                         WebAppInterface(
                             context = context,
                             onCommand = onSendCommand,
-                            onVibrate = { ms ->
+                            onVibrate = { ms, type ->
                                 val finalMs = if (configuredVibration > 0) configuredVibration else ms
-                                if (finalMs > 0) {
-                                    vibratePhone(context, finalMs.toLong())
+                                if (configuredVibration != 0) {
+                                    vibratePhone(context, finalMs.toLong(), type)
                                 }
                             },
                             onSpeech = {
@@ -214,15 +214,28 @@ private fun injectSettings(webView: WebView, theme: String, opacity: Float, blur
 }
 
 @Suppress("DEPRECATION")
-private fun vibratePhone(context: Context, ms: Long) {
+private fun vibratePhone(context: Context, ms: Long, effectType: String = "click") {
     try {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            val vibratorManager = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager
-            vibratorManager?.defaultVibrator?.vibrate(VibrationEffect.createOneShot(ms, VibrationEffect.DEFAULT_AMPLITUDE))
-        } else {
-            val vibrator = context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
-            vibrator?.vibrate(VibrationEffect.createOneShot(ms, VibrationEffect.DEFAULT_AMPLITUDE))
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                val vm = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager
+                vm?.defaultVibrator
+            } else {
+                context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+            }
+            if (vibrator != null && vibrator.hasVibrator()) {
+                val effect = when (effectType) {
+                    "tick" -> VibrationEffect.createPredefined(VibrationEffect.EFFECT_TICK)
+                    "heavy" -> VibrationEffect.createPredefined(VibrationEffect.EFFECT_HEAVY_CLICK)
+                    "double" -> VibrationEffect.createPredefined(VibrationEffect.EFFECT_DOUBLE_CLICK)
+                    else -> VibrationEffect.createPredefined(VibrationEffect.EFFECT_CLICK)
+                }
+                vibrator.vibrate(effect)
+                return
+            }
         }
+        val vibrator = context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+        vibrator?.vibrate(VibrationEffect.createOneShot(ms.coerceAtLeast(8L), VibrationEffect.DEFAULT_AMPLITUDE))
     } catch (e: Exception) {
         // Safe check
     }
@@ -231,7 +244,7 @@ private fun vibratePhone(context: Context, ms: Long) {
 class WebAppInterface(
     private val context: Context,
     private val onCommand: (String, String) -> Unit,
-    private val onVibrate: (Int) -> Unit,
+    private val onVibrate: (Int, String) -> Unit,
     private val onSpeech: () -> Unit,
     private val onToggleFullscreen: () -> Unit,
     private val onExit: () -> Unit,
@@ -259,7 +272,12 @@ class WebAppInterface(
 
     @JavascriptInterface
     fun vibrate(ms: Int) {
-        onVibrate(ms)
+        onVibrate(ms, "click")
+    }
+
+    @JavascriptInterface
+    fun vibrateTyped(ms: Int, type: String) {
+        onVibrate(ms, type)
     }
 
     @JavascriptInterface

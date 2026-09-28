@@ -16,95 +16,122 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <style>
-  :root{
-    box-sizing:border-box;
-    padding-top:env(safe-area-inset-top,0px);
-    padding-bottom:env(safe-area-inset-bottom,0px);
+  :root {
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
     
     /* الخطوط الرسمية لدار الحكايات */
-    --font-serif:'Thmanyah Serif Text', 'Amiri', 'Traditional Arabic', serif;
-    --font-display:'Thmanyah Serif Display', 'Amiri', serif;
-    --font-sans:'Thmanyah Sans', 'Tajawal', sans-serif;
+    --font-serif: 'Thmanyah Serif Text', 'Amiri', 'Traditional Arabic', serif;
+    --font-display: 'Thmanyah Serif Display', 'Amiri', serif;
+    --font-sans: 'Thmanyah Sans', 'Tajawal', sans-serif;
     
     /* 1. تدرج الألوان الملكي الكلاسيكي لدار الحكايات - Royal Classic */
-    --paper:#EAE6D2;
-    --ink:#121A1B;
-    --bg:#EAE6D2;
-    --panel:rgba(244, 241, 228, 0.96);
-    --panel-key:#F4F1EA;
-    --text:#121A1B;
-    --accent:#A7AA63;      /* ذهبي زيتوني دافئ للدار */
-    --accent-2:#8F3C35;    /* قرمزي كلاسيكي أدبي */
-    --border:rgba(18, 26, 27, 0.12);
-    --shadow:rgba(18, 26, 27, 0.12);
-    --muted:#4A5556;
-    color-scheme:light;
+    --paper: #EAE6D2;
+    --ink: #121A1B;
+    --bg: #EAE6D2;
+    --panel: rgba(244, 241, 228, 0.96);
+    --panel-key: #FFFFFF;
+    --panel-key-active: #E4E0D2;
+    --key-rim: #CEC9B4;
+    --key-shadow: 0 2.5px 0 var(--key-rim), 0 3px 6px rgba(18, 26, 27, 0.08);
+    --key-shadow-pressed: 0 0.5px 0 var(--key-rim), inset 0 1.5px 3px rgba(18, 26, 27, 0.12);
+    --key-bevel: inset 0 1px 0 rgba(255, 255, 255, 0.95);
+    --badge-bg: rgba(18, 26, 27, 0.05);
+    --badge-border: rgba(18, 26, 27, 0.12);
+    --badge-text: #6A7576;
+    --text: #121A1B;
+    --accent: #A7AA63;      /* ذهبي زيتوني دافئ للدار */
+    --accent-2: #8F3C35;    /* قرمزي كلاسيكي أدبي */
+    --border: rgba(18, 26, 27, 0.12);
+    --shadow: rgba(18, 26, 27, 0.12);
+    --muted: #4A5556;
+    color-scheme: light;
   }
   
   /* 2. تدرج الألوان الليلي الهامس - Night Whisper */
-  :root[data-theme="night_whisper"]{
-    --bg:#111718;
-    --panel:rgba(23, 31, 33, 0.94);
-    --panel-key:#171F21;
-    --text:#E2DFD2;
-    --accent:#9FA365;
-    --accent-2:#8F3C35;
-    --border:rgba(226, 223, 210, 0.09);
-    --shadow:rgba(0, 0, 0, 0.35);
-    --muted:#7F8C8E;
-    color-scheme:dark;
+  :root[data-theme="night_whisper"] {
+    --bg: #111718;
+    --panel: rgba(23, 31, 33, 0.94);
+    --panel-key: #1D272A;
+    --panel-key-active: #29373B;
+    --key-rim: #0B1011;
+    --key-shadow: 0 2.5px 0 var(--key-rim), 0 3px 6px rgba(0, 0, 0, 0.45);
+    --key-shadow-pressed: 0 0.5px 0 var(--key-rim), inset 0 1.5px 3px rgba(0, 0, 0, 0.5);
+    --key-bevel: inset 0 1px 0.5px rgba(255, 255, 255, 0.14);
+    --badge-bg: rgba(255, 255, 255, 0.07);
+    --badge-border: rgba(255, 255, 255, 0.12);
+    --badge-text: #9FA365;
+    --text: #E2DFD2;
+    --accent: #9FA365;
+    --accent-2: #8F3C35;
+    --border: rgba(226, 223, 210, 0.09);
+    --shadow: rgba(0, 0, 0, 0.35);
+    --muted: #7F8C8E;
+    color-scheme: dark;
   }
 
   /* 3. تدرج الوضع الداكن الفاخر من آبل - Apple Dark */
-  :root[data-theme="apple_dark"]{
-    --bg:#000000;
-    --panel:#1C1C1E;
-    --panel-key:#2C2C2E;
-    --text:#F5F5F5;
-    --accent:#F5F5F5;
-    --accent-2:#FF453A;    /* أحمر آبل الأدبي الفاخر */
-    --border:rgba(255, 255, 255, 0.08);
-    --shadow:rgba(0, 0, 0, 0.5);
-    --muted:#8E8E93;
-    color-scheme:dark;
+  :root[data-theme="apple_dark"] {
+    --bg: #000000;
+    --panel: #1C1C1E;
+    --panel-key: #2C2C2E;
+    --panel-key-active: #3A3A3C;
+    --key-rim: #141415;
+    --key-shadow: 0 2.5px 0 var(--key-rim), 0 3px 6px rgba(0, 0, 0, 0.65);
+    --key-shadow-pressed: 0 0.5px 0 var(--key-rim), inset 0 1.5px 3px rgba(0, 0, 0, 0.6);
+    --key-bevel: inset 0 1px 0.5px rgba(255, 255, 255, 0.16);
+    --badge-bg: rgba(255, 255, 255, 0.08);
+    --badge-border: rgba(255, 255, 255, 0.14);
+    --badge-text: #8E8E93;
+    --text: #F5F5F5;
+    --accent: #F5F5F5;
+    --accent-2: #FF453A;    /* أحمر آبل الأدبي الفاخر */
+    --border: rgba(255, 255, 255, 0.08);
+    --shadow: rgba(0, 0, 0, 0.5);
+    --muted: #8E8E93;
+    color-scheme: dark;
   }
   
-  @media (prefers-color-scheme:dark){
-    :root:not([data-theme="light"]):not([data-theme="royal_classic"]):not([data-theme="apple_dark"]){
-      --bg:#111718;
-      --panel:rgba(23, 31, 33, 0.94);
-      --panel-key:#171F21;
-      --text:#E2DFD2;
-      --accent:#9FA365;
-      --accent-2:#8F3C35;
-      --border:rgba(226, 223, 210, 0.09);
-      --shadow:rgba(0, 0, 0, 0.35);
-      --muted:#7F8C8E;
-      color-scheme:dark;
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]):not([data-theme="royal_classic"]):not([data-theme="apple_dark"]) {
+      --bg: #111718;
+      --panel: rgba(23, 31, 33, 0.94);
+      --panel-key: #1D272A;
+      --panel-key-active: #29373B;
+      --key-rim: #0B1011;
+      --key-shadow: 0 2.5px 0 var(--key-rim), 0 3px 6px rgba(0, 0, 0, 0.45);
+      --key-shadow-pressed: 0 0.5px 0 var(--key-rim), inset 0 1.5px 3px rgba(0, 0, 0, 0.5);
+      --key-bevel: inset 0 1px 0.5px rgba(255, 255, 255, 0.14);
+      --badge-bg: rgba(255, 255, 255, 0.07);
+      --badge-border: rgba(255, 255, 255, 0.12);
+      --badge-text: #9FA365;
+      --text: #E2DFD2;
+      --accent: #9FA365;
+      --accent-2: #8F3C35;
+      --border: rgba(226, 223, 210, 0.09);
+      --shadow: rgba(0, 0, 0, 0.35);
+      --muted: #7F8C8E;
+      color-scheme: dark;
     }
   }
-  
-  :root[data-theme="royal_classic"]{
-    --bg:#EAE6D2;
-    --panel:rgba(244, 241, 228, 0.96);
-    --panel-key:#F4F1EA;
-    --text:#121A1B;
-    --accent:#A7AA63;
-    --accent-2:#8F3C35;
-    --border:rgba(18, 26, 27, 0.12);
-    --shadow:rgba(18, 26, 27, 0.12);
-    --muted:#4A5556;
-    color-scheme:light;
-  }
 
-  *{box-sizing:border-box;}
-  html,body{height:100vh; width:100vw; margin:0; padding:0; overflow:hidden; background:var(--bg);}
-  body{
-    display:flex; flex-direction:column;
-    font-family:var(--font-sans);
-    -webkit-tap-highlight-color:transparent;
+  * { box-sizing: border-box; }
+  html, body {
+    height: 100vh;
+    width: 100vw;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    background: var(--bg);
+  }
+  body {
+    display: flex;
+    flex-direction: column;
+    font-family: var(--font-sans);
+    -webkit-tap-highlight-color: transparent;
     transition: background-color 0.3s ease, color 0.3s ease;
-    position:relative;
+    position: relative;
   }
   
   .linen-texture {
@@ -120,60 +147,88 @@
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'%3E%3Cpath d='M0 4h16M0 12h16M4 0v16M12 0v16' stroke='%23ffffff' stroke-opacity='0.1' stroke-width='0.5'/%3E%3C/svg%3E");
   }
 
-  button{font-family:inherit; -webkit-user-select:none; user-select:none; cursor:pointer;}
-  button:focus{outline:none;}
-
-  .app{
-    height:100vh; display:flex; flex-direction:column; justify-content:space-between;
-    animation:appear .25s ease both;
+  button {
+    font-family: inherit;
+    -webkit-user-select: none;
+    user-select: none;
+    cursor: pointer;
+    touch-action: manipulation;
   }
-  @keyframes appear{from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:none;}}
+  button:focus { outline: none; }
+
+  .app {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    animation: appear .25s ease both;
+  }
+  @keyframes appear {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: none; }
+  }
 
   /* ضبط شريط الـ Header ليكون ثابتاً ولا يتداخل مع الكيبورد إطلاقاً */
   .bar {
-    height: 50px;
-    min-height: 50px;
+    height: 48px;
+    min-height: 48px;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0 16px;
+    padding: 0 14px;
     background: var(--panel);
     border-bottom: 1px solid var(--border);
     z-index: 10;
   }
 
   .brand { display: flex; align-items: center; gap: 8px; }
-  .brand .titles strong { font-family: var(--font-display); font-size: 1rem; font-weight: 900; color: var(--text); }
-  .brand .titles span { font-family: var(--font-sans); font-size: 0.7rem; color: var(--accent); }
+  .brand .titles strong { font-family: var(--font-display); font-size: 0.95rem; font-weight: 900; color: var(--text); }
+  .brand .titles span { font-family: var(--font-sans); font-size: 0.68rem; color: var(--accent); }
 
-  .header-controls { display: flex; align-items: center; gap: 8px; }
+  .header-controls { display: flex; align-items: center; gap: 6px; }
 
   /* الكبسولة الأنيقة لحالة الاتصال */
   .status-text {
     display: flex;
     align-items: center;
     gap: 6px;
-    font-size: 0.75rem;
+    font-size: 0.72rem;
     font-weight: 700;
     color: var(--muted);
     font-family: var(--font-sans);
   }
-  .dot { width: 8px; height: 8px; border-radius: 50%; background: #9FA365; display: inline-block; animation: pulse 1.5s infinite; }
-  @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(1.2); } }
+  .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #9FA365;
+    display: inline-block;
+    animation: pulse 1.5s infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(1.2); }
+  }
 
   .ctrl-btn {
-    width: 34px;
-    height: 34px;
-    border-radius: 10px;
+    width: 32px;
+    height: 32px;
+    border-radius: 9px;
     background: var(--panel-key);
     border: 1px solid var(--border);
     color: var(--text);
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.1s ease;
+    box-shadow: var(--key-shadow), var(--key-bevel);
+    transition: transform 0.06s cubic-bezier(0.2, 0, 0, 1), box-shadow 0.06s ease, background 0.1s ease;
   }
-  .ctrl-btn.pressed { background: var(--accent); color: var(--paper); transform: translateY(1px); }
+  .ctrl-btn.pressed {
+    background: var(--accent);
+    color: var(--paper);
+    transform: translateY(2px) scale(0.98);
+    box-shadow: var(--key-shadow-pressed) !important;
+  }
 
   /* ضبط منطقة الكيبورد لتأخذ بقية الشاشة بالكامل دون أي زيادة */
   .deck {
@@ -182,7 +237,7 @@
     display: flex;
     flex-direction: column;
     gap: 4px;
-    padding: 4px 8px calc(4px + env(safe-area-inset-bottom, 0px)) 8px;
+    padding: 3px 6px calc(3px + env(safe-area-inset-bottom, 0px)) 6px;
     background: var(--panel);
   }
 
@@ -203,25 +258,31 @@
     border: 1px solid var(--border);
     border-radius: 8px;
     font-family: var(--font-serif);
-    font-size: 1.1rem;
+    font-size: 1.15rem;
     font-weight: bold;
     color: var(--text);
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.1s ease;
+    box-shadow: var(--key-shadow), var(--key-bevel);
+    transition: transform 0.06s cubic-bezier(0.2, 0, 0, 1), box-shadow 0.06s ease, background 0.1s ease;
   }
-  .tkey.pressed { background: var(--accent); color: var(--paper); transform: translateY(1px); }
+  .tkey.pressed {
+    background: var(--accent);
+    color: var(--paper);
+    transform: translateY(2px) scale(0.98);
+    box-shadow: var(--key-shadow-pressed) !important;
+  }
 
   .keys-wrap {
     flex: 1;
     min-height: 0;
     display: flex;
-    gap: 6px;
+    gap: 5px;
   }
 
   .literary-col {
-    width: 90px;
+    width: 88px;
     display: flex;
     flex-direction: column;
     gap: 4px;
@@ -237,15 +298,21 @@
     border: 1px solid var(--border);
     border-radius: 8px;
     font-family: var(--font-serif);
-    font-size: 1rem;
+    font-size: 1.05rem;
     font-weight: bold;
     color: var(--text);
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.1s ease;
+    box-shadow: var(--key-shadow), var(--key-bevel);
+    transition: transform 0.06s cubic-bezier(0.2, 0, 0, 1), box-shadow 0.06s ease, background 0.1s ease;
   }
-  .lkey.pressed { background: var(--accent-2); color: #fff; transform: translateY(1px); }
+  .lkey.pressed {
+    background: var(--accent-2);
+    color: #FFFFFF;
+    transform: translateY(2px) scale(0.98);
+    box-shadow: var(--key-shadow-pressed) !important;
+  }
 
   .letters {
     flex: 1;
@@ -258,30 +325,72 @@
     display: flex;
     gap: 4px;
   }
+  
+  /* ---------------- 3D Keycaps Physical Architecture ---------------- */
   .key {
     flex: 1;
     background: var(--panel-key);
     border: 1px solid var(--border);
     border-radius: 8px;
     font-family: var(--font-sans);
-    font-size: 1.1rem;
-    font-weight: bold;
+    font-size: 1.15rem;
+    font-weight: 700;
     color: var(--text);
     display: flex;
     align-items: center;
     justify-content: center;
     position: relative;
-    transition: all 0.1s ease;
+    box-shadow: var(--key-shadow), var(--key-bevel);
+    transition: transform 0.06s cubic-bezier(0.2, 0, 0, 1), box-shadow 0.06s ease, background 0.1s ease;
   }
-  .key.pressed { background: var(--accent); color: var(--paper); transform: translateY(1px); }
-  .key .hint { position: absolute; top: 2px; left: 5px; font-size: .55rem; opacity: .5; font-weight: 400; }
+  .key.pressed {
+    background: var(--accent);
+    color: var(--paper) !important;
+    transform: translateY(2px) scale(0.985);
+    box-shadow: var(--key-shadow-pressed) !important;
+  }
+  .key.pressed .num-badge {
+    transform: scale(0.9);
+    opacity: 0.9;
+    background: rgba(0, 0, 0, 0.18);
+    color: #FFFFFF;
+  }
+
+  /* ---------------- Circular Number Badges (الملمس الدائري للأرقام والرموز) ---------------- */
+  .key .num-badge {
+    position: absolute;
+    top: 2.5px;
+    left: 3.5px;
+    min-width: 15px;
+    height: 15px;
+    padding: 0 3px;
+    border-radius: 7.5px;
+    background: var(--badge-bg);
+    border: 0.5px solid var(--badge-border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.62rem;
+    font-family: var(--font-sans);
+    font-weight: 700;
+    color: var(--badge-text);
+    line-height: 1;
+    pointer-events: none;
+    box-shadow: 0 0.5px 1.5px rgba(0, 0, 0, 0.06);
+    transition: transform 0.06s ease, opacity 0.06s ease, background 0.1s ease;
+  }
+  
+  /* الحروف التي تحتوي بدائل إضافية */
+  .key.has-variants .num-badge {
+    border-bottom-width: 1.5px;
+  }
 
   /* شريط المسافة والأزرار الجانبية السفلي وثبات العرض */
   .bottom-row {
     height: 40px;
     min-height: 40px;
     display: flex;
-    gap: 6px;
+    gap: 5px;
   }
   .spacebar {
     flex: 1;
@@ -295,15 +404,22 @@
     align-items: center;
     justify-content: center;
     font-weight: bold;
-    transition: all 0.1s ease;
+    letter-spacing: 0.5px;
+    box-shadow: var(--key-shadow), var(--key-bevel);
+    transition: transform 0.06s cubic-bezier(0.2, 0, 0, 1), box-shadow 0.06s ease, background 0.1s ease;
   }
-  .spacebar.pressed { background: var(--accent); color: var(--paper); transform: translateY(1px); }
+  .spacebar.pressed {
+    background: var(--accent);
+    color: var(--paper);
+    transform: translateY(2px) scale(0.99);
+    box-shadow: var(--key-shadow-pressed) !important;
+  }
 
   .side-btn {
-    width: 50px;
+    width: 48px;
     background: var(--panel-key);
     border: 1px solid var(--border);
-    border-radius: 20px;
+    border-radius: 18px;
     font-family: var(--font-sans);
     font-size: 0.9rem;
     font-weight: bold;
@@ -311,32 +427,70 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.1s ease;
+    box-shadow: var(--key-shadow), var(--key-bevel);
+    transition: transform 0.06s cubic-bezier(0.2, 0, 0, 1), box-shadow 0.06s ease, background 0.1s ease;
   }
   .side-btn svg { width: 18px; height: 18px; }
-  .side-btn.pressed { background: var(--accent-2); color: #fff; transform: translateY(1px); }
+  .side-btn.pressed {
+    background: var(--accent-2);
+    color: #FFFFFF;
+    transform: translateY(2px) scale(0.98);
+    box-shadow: var(--key-shadow-pressed) !important;
+  }
   .side-btn.disabled { opacity: 0.35; }
   .side-btn.recording { animation: pulse 1s infinite; }
 
   /* ---------- Variant popup (long-press) ---------- */
   .variant-popup {
-    position: fixed; display: flex; gap: 6px; padding: 6px; background: var(--panel);
-    border: 1px solid var(--border); border-radius: 16px; box-shadow: 0 6px 18px var(--shadow); z-index: 50;
+    position: fixed;
+    display: flex;
+    gap: 6px;
+    padding: 6px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    box-shadow: 0 8px 24px var(--shadow);
+    z-index: 50;
   }
   .variant-popup.hidden { display: none; }
   .variant-btn {
-    min-width: 44px; height: 44px; display: flex; align-items: center; justify-content: center;
-    background: var(--panel-key); color: var(--text); border: 1px solid var(--border);
-    border-radius: 14px; font-family: var(--font-serif); font-size: 1.25rem; touch-action: none; font-weight: bold;
-    transition: all 0.1s ease;
+    min-width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--panel-key);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    font-family: var(--font-serif);
+    font-size: 1.25rem;
+    touch-action: none;
+    font-weight: bold;
+    box-shadow: var(--key-shadow), var(--key-bevel);
+    transition: transform 0.06s cubic-bezier(0.2, 0, 0, 1), box-shadow 0.06s ease;
   }
-  .variant-btn.pressed { background: var(--accent); color: var(--paper); }
+  .variant-btn.pressed {
+    background: var(--accent);
+    color: var(--paper);
+    transform: translateY(2px) scale(0.98);
+    box-shadow: var(--key-shadow-pressed) !important;
+  }
 
   /* ---------- Rotate hint ---------- */
   .rotate-hint {
-    position: fixed; inset: 0; background: var(--bg); color: var(--text); display: none;
-    flex-direction: column; align-items: center; justify-content: center; gap: 12px; z-index: 100;
-    text-align: center; padding: 32px;
+    position: fixed;
+    inset: 0;
+    background: var(--bg);
+    color: var(--text);
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    z-index: 100;
+    text-align: center;
+    padding: 32px;
   }
   @media (orientation: portrait) { .rotate-hint { display: flex; } }
 
@@ -378,22 +532,22 @@
   body.has-custom-bg .key,
   body.has-custom-bg .tkey,
   body.has-custom-bg .lkey,
-  body.has-custom-bg .bkey,
   body.has-custom-bg .spacebar,
+  body.has-custom-bg .side-btn,
   body.has-custom-bg .ctrl-btn {
     background: rgba(255, 255, 255, 0.22) !important;
     backdrop-filter: blur(8px) !important;
     -webkit-backdrop-filter: blur(8px) !important;
     border: 1px solid rgba(255, 255, 255, 0.28) !important;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25) !important;
+    box-shadow: 0 1.5px 3px rgba(0, 0, 0, 0.25) !important;
     color: #FFFFFF !important;
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6) !important;
   }
   :root[data-theme="royal_classic"] body.has-custom-bg .key,
   :root[data-theme="royal_classic"] body.has-custom-bg .tkey,
   :root[data-theme="royal_classic"] body.has-custom-bg .lkey,
-  :root[data-theme="royal_classic"] body.has-custom-bg .bkey,
-  :root[data-theme="royal_classic"] body.has-custom-bg .spacebar {
+  :root[data-theme="royal_classic"] body.has-custom-bg .spacebar,
+  :root[data-theme="royal_classic"] body.has-custom-bg .side-btn {
     background: rgba(255, 255, 255, 0.35) !important;
     border: 1px solid rgba(255, 255, 255, 0.45) !important;
     color: #121A1B !important;
@@ -402,19 +556,23 @@
   body.has-custom-bg .key.pressed,
   body.has-custom-bg .tkey.pressed,
   body.has-custom-bg .lkey.pressed,
-  body.has-custom-bg .bkey.pressed,
   body.has-custom-bg .spacebar.pressed,
+  body.has-custom-bg .side-btn.pressed,
   body.has-custom-bg .ctrl-btn.pressed {
     background: var(--accent) !important;
     color: #FFFFFF !important;
-    transform: translateY(1px) !important;
+    transform: translateY(2px) !important;
   }
-  body.has-custom-bg .key .hint {
-    color: rgba(255, 255, 255, 0.75) !important;
+  body.has-custom-bg .key .num-badge {
+    background: rgba(255, 255, 255, 0.2) !important;
+    color: #FFFFFF !important;
+    border-color: rgba(255, 255, 255, 0.3) !important;
     text-shadow: none !important;
   }
-  :root[data-theme="royal_classic"] body.has-custom-bg .key .hint {
-    color: rgba(18, 26, 27, 0.65) !important;
+  :root[data-theme="royal_classic"] body.has-custom-bg .key .num-badge {
+    background: rgba(18, 26, 27, 0.1) !important;
+    color: #121A1B !important;
+    border-color: rgba(18, 26, 27, 0.2) !important;
   }
 </style>
 </head>
@@ -426,7 +584,7 @@
   <!-- الجانب الأيمن: شارة الاتصال وزر الخروج -->
   <div class="brand">
     <button class="ctrl-btn" id="exitBtn" title="خروج" type="button" style="color: var(--accent-2);">
-      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width: 18px; height: 18px;">
+      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width: 17px; height: 17px;">
         <path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
       </svg>
     </button>
@@ -436,12 +594,13 @@
     </div>
   </div>
 
-  <!-- الجانب الأيسر: حالة الاتصال وعناصر التحكم -->
+  <!-- الجانب الأيسر: حالة الاتصال وعناصر التحكم والنقر الميكانيكي -->
   <div class="header-controls">
     <div class="status-text">
       <span class="dot"></span>
       <span id="connStatusText">غير متصل بمحراب الدار</span>
     </div>
+    <button class="ctrl-btn" id="soundBtn" title="كتم / تفعيل النقر الميكانيكي" type="button">🔊</button>
     <button class="ctrl-btn" id="paragraphBtn" title="فقرة جديدة" type="button">P</button>
     <button class="ctrl-btn" id="undoBtn" title="تراجع" type="button">◀</button>
     <button class="ctrl-btn" id="redoBtn" title="إعادة" type="button">▶</button>
@@ -458,7 +617,7 @@
     <div class="bottom-row">
       <button class="side-btn lang-toggle" id="toggleLang" title="تبديل اللغة (عربي / English)" type="button">EN</button>
       <button class="side-btn num-toggle" id="toggleNum" title="أرقام ورموز" type="button">١٢٣</button>
-      <div class="spacebar" id="spacebar">اسحبي للتنقل بين الحروف · انقري لإدراج مسافة</div>
+      <div class="spacebar" id="spacebar">مسافة ❦ كيبورد الحكايات</div>
       <button class="side-btn" id="micBtn" title="إملاء صوتي" type="button">
         <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/>
@@ -485,20 +644,15 @@
 <div class="rotate-hint">
   <div class="glyph" style="margin-bottom: 24px;">
     <svg class="mx-auto" style="width: 100px; height: 100px;" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <!-- أسهم دوران انسيابية مرسومة بدقة متناهية تحيط بالهاتف لتوجيه عيون الكاتبة -->
       <path d="M 50 15 A 35 35 0 0 1 85 50" stroke="var(--accent)" stroke-width="3.5" stroke-linecap="round" />
       <path d="M 85 50 L 78 43 M 85 50 L 92 45" stroke="var(--accent)" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" />
 
       <path d="M 50 85 A 35 35 0 0 1 15 50" stroke="var(--accent)" stroke-width="3.5" stroke-linecap="round" />
       <path d="M 15 50 L 22 57 M 15 50 L 8 55" stroke="var(--accent)" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" />
 
-      <!-- مجسم الهاتف الذكي بتفاصيله الدقيقة الذي يدور ديناميكياً بزاوية 90 درجة لتمثيل الدوران الفعلي -->
       <g class="animated-phone">
-        <!-- جسم الهاتف ذو الحواف المنحنية الفاخرة -->
         <rect x="36" y="20" width="28" height="60" rx="6" fill="var(--panel-key)" stroke="var(--text)" stroke-width="3" />
-        <!-- حافة الشاشة ومكبر الصوت العلوي -->
         <line x1="44" y1="25" x2="56" y2="25" stroke="var(--text)" stroke-width="2.5" stroke-linecap="round" />
-        <!-- زر القائمة الدائري المتناسق في المنتصف تماماً -->
         <circle cx="50" cy="71" r="3" fill="var(--text)" />
       </g>
     </svg>
@@ -525,6 +679,7 @@
   var redoBtn = document.getElementById('redoBtn');
   var paragraphBtn = document.getElementById('paragraphBtn');
   var themeBtn = document.getElementById('themeBtn');
+  var soundBtn = document.getElementById('soundBtn');
   var exitBtn = document.getElementById('exitBtn');
   var latEl = document.getElementById('lat');
   var connStatusText = document.getElementById('connStatusText');
@@ -533,16 +688,148 @@
   var currentLang = 'ar'; // 'ar' or 'en'
   var numMode = false;
   var shiftMode = false;
+  var soundEnabled = true;
 
-  /* ---------------- Haptics ---------------- */
-  function buzz(ms){
+  try {
+    var storedSound = localStorage.getItem('riwaya_sound');
+    if (storedSound !== null) {
+      soundEnabled = (storedSound === 'true');
+    }
+  } catch(e) {}
+
+  /* ---------------- Zero-Latency Mechanical Audio Synthesizer (Web Audio API) ---------------- */
+  var audioCtx = null;
+  function initAudio() {
+    if (!audioCtx) {
+      var AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      if (AudioContextClass) {
+        audioCtx = new AudioContextClass();
+      }
+    }
+    if (audioCtx && audioCtx.state === 'suspended') {
+      audioCtx.resume();
+    }
+  }
+
+  function playKeySound(type) {
+    if (!soundEnabled) return;
     try {
-      if (window.AndroidInterface && window.AndroidInterface.vibrate) {
-        window.AndroidInterface.vibrate(ms || 10);
-      } else if (navigator.vibrate) {
+      initAudio();
+      if (!audioCtx) return;
+      var now = audioCtx.currentTime;
+
+      if (type === 'thud') {
+        // Spacebar: deep mechanical switch thud with wooden chassis resonance
+        var osc = audioCtx.createOscillator();
+        var gain = audioCtx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(160, now);
+        osc.frequency.exponentialRampToValueAtTime(45, now + 0.045);
+
+        gain.gain.setValueAtTime(0.32, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.045);
+
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(now);
+        osc.stop(now + 0.05);
+
+      } else if (type === 'pop') {
+        // Backspace / Enter: Snappy mechanical carriage return pop
+        var osc = audioCtx.createOscillator();
+        var gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(340, now);
+        osc.frequency.exponentialRampToValueAtTime(110, now + 0.032);
+
+        gain.gain.setValueAtTime(0.28, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.032);
+
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(now);
+        osc.stop(now + 0.035);
+
+      } else if (type === 'tick') {
+        // Tashkeel / literary mark / scrub: delicate ceramic click
+        var osc = audioCtx.createOscillator();
+        var gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(1900, now);
+        osc.frequency.exponentialRampToValueAtTime(750, now + 0.016);
+
+        gain.gain.setValueAtTime(0.18, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.016);
+
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(now);
+        osc.stop(now + 0.02);
+
+      } else {
+        // Standard mechanical switch click: crisp typewriter transient
+        var osc = audioCtx.createOscillator();
+        var gain = audioCtx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(680, now);
+        osc.frequency.exponentialRampToValueAtTime(170, now + 0.026);
+
+        gain.gain.setValueAtTime(0.25, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.026);
+
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(now);
+        osc.stop(now + 0.03);
+      }
+    } catch(e) {
+      // Audio synthesis fallback
+    }
+  }
+
+  // تهيئة مسار الصوت مع أول لمسة للمستخدم لرفع قيود التصفح تلقائياً
+  window.addEventListener('pointerdown', function(){ initAudio(); }, { once: true, passive: true });
+
+  /* ---------------- High-Precision Haptics ("الهمسة") ---------------- */
+  function buzz(ms, type){
+    try {
+      if (window.AndroidInterface) {
+        if (window.AndroidInterface.vibrateTyped) {
+          window.AndroidInterface.vibrateTyped(ms || 10, type || "click");
+          return;
+        }
+        if (window.AndroidInterface.vibrate) {
+          window.AndroidInterface.vibrate(ms || 10);
+          return;
+        }
+      }
+      if (navigator.vibrate) {
         navigator.vibrate(ms || 10);
       }
     } catch(e) {}
+  }
+
+  /* ---------------- Sound toggle in header ---------------- */
+  function updateSoundIcon() {
+    if (soundBtn) {
+      soundBtn.textContent = soundEnabled ? '🔊' : '🔇';
+      soundBtn.title = soundEnabled ? 'كتم النقر الميكانيكي' : 'تفعيل النقر الميكانيكي';
+    }
+  }
+  updateSoundIcon();
+
+  if (soundBtn) {
+    pressable(soundBtn, function(){
+      soundEnabled = !soundEnabled;
+      try { localStorage.setItem('riwaya_sound', soundEnabled ? 'true' : 'false'); } catch(e) {}
+      updateSoundIcon();
+      if (soundEnabled) {
+        playKeySound('switch');
+        buzz(10, 'click');
+      } else {
+        buzz(8, 'tick');
+      }
+    });
   }
 
   /* ---------------- Network dispatch to Native Server (/api/command) ---------------- */
@@ -583,12 +870,19 @@
     }
   };
 
-  /* ---------------- Generic pressable helper ---------------- */
+  /* ---------------- Generic pressable helper with physical release ---------------- */
   function pressable(el, onRelease){
     el.setAttribute('tabindex', el.getAttribute('tabindex') || '-1');
-    el.addEventListener('pointerdown', function(e){ e.preventDefault(); el.classList.add('pressed'); });
+    el.addEventListener('pointerdown', function(e){
+      e.preventDefault();
+      el.classList.add('pressed');
+    });
     var clear = function(){ el.classList.remove('pressed'); };
-    el.addEventListener('pointerup', function(e){ e.preventDefault(); clear(); if(onRelease) onRelease(e); });
+    el.addEventListener('pointerup', function(e){
+      e.preventDefault();
+      clear();
+      if(onRelease) onRelease(e);
+    });
     el.addEventListener('pointercancel', clear);
     el.addEventListener('pointerleave', clear);
   }
@@ -596,7 +890,8 @@
   /* ---------------- Exit button action ---------------- */
   if (exitBtn) {
     pressable(exitBtn, function(){
-      buzz(15);
+      playKeySound('pop');
+      buzz(14, 'heavy');
       if (window.AndroidInterface && window.AndroidInterface.exitKeyboard) {
         window.AndroidInterface.exitKeyboard();
       }
@@ -604,9 +899,21 @@
   }
 
   /* ---------------- Header controls ---------------- */
-  pressable(undoBtn, function(){ sendCmd('undo'); buzz(10); });
-  pressable(redoBtn, function(){ sendCmd('redo'); buzz(10); });
-  pressable(paragraphBtn, function(){ sendCmd('newline'); buzz(10); });
+  pressable(undoBtn, function(){
+    sendCmd('undo');
+    playKeySound('switch');
+    buzz(9, 'tick');
+  });
+  pressable(redoBtn, function(){
+    sendCmd('redo');
+    playKeySound('switch');
+    buzz(9, 'tick');
+  });
+  pressable(paragraphBtn, function(){
+    sendCmd('newline');
+    playKeySound('pop');
+    buzz(12, 'click');
+  });
 
   /* دمج وتكامل الدورات الثلاثية لأوضاع دار الحكايات: Royal Classic -> Night Whisper -> Apple Dark */
   var THEMES = ['royal_classic', 'night_whisper', 'apple_dark'];
@@ -617,21 +924,20 @@
     return 'royal_classic';
   }
   
-  /* أيقونات متجهة لكل وضع من الأوضاع الثلاثة للدار */
-  var SUN_SVG = '<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:18px;height:18px;"><circle cx="12" cy="12" r="5"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 1v2m0 18v2M4.22 4.22l1.42 1.42m12.72 12.72l1.42 1.42M1 12h2m18 0h2M4.22 19.78l1.42-1.42M17.66 6.34l1.42-1.42"/></svg>';
-  var MOON_SVG = '<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:18px;height:18px;"><path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>';
-  var APPLE_SVG = '<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:18px;height:18px;"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m0-11.314l.707.707m11.314 11.314l.707-.707M12 5a7 7 0 100 14 7 7 0 000-14z"/></svg>';
+  var SUN_SVG = '<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:17px;height:17px;"><circle cx="12" cy="12" r="5"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 1v2m0 18v2M4.22 4.22l1.42 1.42m12.72 12.72l1.42 1.42M1 12h2m18 0h2M4.22 19.78l1.42-1.42M17.66 6.34l1.42-1.42"/></svg>';
+  var MOON_SVG = '<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:17px;height:17px;"><path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>';
+  var APPLE_SVG = '<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:17px;height:17px;"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m0-11.314l.707.707m11.314 11.314l.707-.707M12 5a7 7 0 100 14 7 7 0 000-14z"/></svg>';
   
   function refreshThemeIcon(){ 
     var curr = currentTheme();
     if (curr === 'royal_classic') {
-      themeBtn.innerHTML = MOON_SVG; // يقودنا للوضع الليلي
+      themeBtn.innerHTML = MOON_SVG;
       themeBtn.title = "التحويل للوضع الليلي الهامس";
     } else if (curr === 'night_whisper') {
-      themeBtn.innerHTML = APPLE_SVG; // يقودنا لوضع آبل الداكن
+      themeBtn.innerHTML = APPLE_SVG;
       themeBtn.title = "التحويل لوضع آبل الداكن";
     } else {
-      themeBtn.innerHTML = SUN_SVG; // يقودنا للوضع الكلاسيكي الملكي
+      themeBtn.innerHTML = SUN_SVG;
       themeBtn.title = "التحويل للوضع الملكي الكلاسيكي";
     }
   }
@@ -654,7 +960,8 @@
       window.AndroidInterface.onThemeChanged(next);
     }
     
-    buzz(8);
+    playKeySound('tick');
+    buzz(8, 'tick');
   });
 
   /* ---------------- Tashkeel ribbon ---------------- */
@@ -671,7 +978,6 @@
   ];
   function renderTashkeel(){
     tashkeelRow.innerHTML = '';
-    // إخفاء تشكيل علامات الإعراب تماماً عند تحويل الكيبورد للغة الإنجليزية
     if (currentLang === 'en') {
       tashkeelRow.style.display = 'none';
       return;
@@ -683,7 +989,11 @@
       b.textContent = '\u0640' + t.mark;
       b.title = t.name;
       b.setAttribute('aria-label', t.name);
-      pressable(b, function(){ sendCmd('tashkeel', 'char=' + encodeURIComponent(t.mark)); buzz(7); });
+      pressable(b, function(){
+        sendCmd('tashkeel', 'char=' + encodeURIComponent(t.mark));
+        playKeySound('tick');
+        buzz(7, 'tick');
+      });
       tashkeelRow.appendChild(b);
     });
   }
@@ -724,7 +1034,8 @@
         pressable(b, function(){
           if(item.quotes){ sendCmd('type', 'char=' + encodeURIComponent(item.value)); }
           else { sendCmd('type', 'char=' + encodeURIComponent(item.ch)); }
-          buzz(9);
+          playKeySound('tick');
+          buzz(9, 'tick');
         });
         row.appendChild(b);
       });
@@ -732,20 +1043,88 @@
     });
   }
 
-  /* ---------------- Letter layouts (حروف عربية وإنكليزية كاملة مع ميزات التوسيع) ---------------- */
+  /* ---------------- Letter layouts with Circular Number Badges & Secondary Symbols ---------------- */
   var LETTER_ROWS_AR = [
-    [{c:'ض'},{c:'ص'},{c:'ث'},{c:'ق'},{c:'ف'},{c:'غ'},{c:'ع'},{c:'ه',v:['ه','ة']},{c:'خ'},{c:'ح'},{c:'ج'},{c:'د'},{c:'ذ'}],
-    [{c:'ش'},{c:'س'},{c:'ي',v:['ي','ى','ئ']},{c:'ب'},{c:'ل',v:['ل','لا']},{c:'ا',v:['ا','أ','إ','آ','ء']},{c:'ت'},{c:'ن'},{c:'م'},{c:'ك'},{c:'ط'}],
-    [{c:'ئ'},{c:'ء'},{c:'ؤ',v:['ؤ','و']},{c:'ر'},{c:'لا'},{c:'ى'},{c:'ة'},{c:'و',v:['و','ؤ']},{c:'ز'},{c:'ظ'}]
+    [
+      {c:'ض', b:'١', n:'١'},
+      {c:'ص', b:'٢', n:'٢'},
+      {c:'ث', b:'٣', n:'٣'},
+      {c:'ق', b:'٤', n:'٤'},
+      {c:'ف', b:'٥', n:'٥'},
+      {c:'غ', b:'٦', n:'٦'},
+      {c:'ع', b:'٧', n:'٧'},
+      {c:'ه', b:'٨', n:'٨', v:['ه','ة']},
+      {c:'خ', b:'٩', n:'٩'},
+      {c:'ح', b:'٠', n:'٠'},
+      {c:'ج', b:'-', n:'-'},
+      {c:'د', b:'+', n:'+'},
+      {c:'ذ', b:'=', n:'='}
+    ],
+    [
+      {c:'ش', b:'@', n:'@'},
+      {c:'س', b:'#', n:'#'},
+      {c:'ي', b:'%', n:'%', v:['ي','ى','ئ']},
+      {c:'ب', b:'&', n:'&'},
+      {c:'ل', b:'*', n:'*', v:['ل','لا']},
+      {c:'ا', b:'ـ', n:'ـ', v:['ا','أ','إ','آ','ء']},
+      {c:'ت', b:'؛', n:'؛'},
+      {c:'ن', b:':', n:':'},
+      {c:'م', b:'/', n:'/'},
+      {c:'ك', b:'\'', n:'\''},
+      {c:'ط', b:'"', n:'"'}
+    ],
+    [
+      {c:'ئ', b:'(' , n:'('},
+      {c:'ء', b:')', n:')'},
+      {c:'ؤ', b:'«', n:'«', v:['ؤ','و']},
+      {c:'ر', b:'~', n:'~'},
+      {c:'لا', b:'»', n:'»'},
+      {c:'ى', b:'_'},
+      {c:'ة', b:'؟', n:'؟'},
+      {c:'و', b:'!', n:'!', v:['و','ؤ']},
+      {c:'ز', b:'،' , n:'،'},
+      {c:'ظ', b:'.', n:'.'}
+    ]
   ];
 
   var LETTER_ROWS_EN = [
-    [{c:'q'},{c:'w'},{c:'e',v:['e','é','è','ê','ë']},{c:'r'},{c:'t'},{c:'y'},{c:'u',v:['u','ú','ù','û','ü']},{c:'i',v:['i','í','ì','î','ï']},{c:'o',v:['o','ó','ò','ô','ö','œ']},{c:'p'}],
-    [{c:'a',v:['a','á','à','â','ä','æ']},{c:'s'},{c:'d'},{c:'f'},{c:'g'},{c:'h'},{c:'j'},{c:'k'},{c:'l'}],
-    [{c:'shift', isShift:true},{c:'z'},{c:'x'},{c:'c',v:['c','ç']},{c:'v'},{c:'b'},{c:'n',v:['n','ñ']},{c:'m'},{c:'.',v:['.',',','?','!']}]
+    [
+      {c:'q', b:'1', n:'1'},
+      {c:'w', b:'2', n:'2'},
+      {c:'e', b:'3', n:'3', v:['e','é','è','ê','ë']},
+      {c:'r', b:'4', n:'4'},
+      {c:'t', b:'5', n:'5'},
+      {c:'y', b:'6', n:'6'},
+      {c:'u', b:'7', n:'7', v:['u','ú','ù','û','ü']},
+      {c:'i', b:'8', n:'8', v:['i','í','ì','î','ï']},
+      {c:'o', b:'9', n:'9', v:['o','ó','ò','ô','ö','œ']},
+      {c:'p', b:'0', n:'0'}
+    ],
+    [
+      {c:'a', b:'@', n:'@', v:['a','á','à','â','ä','æ']},
+      {c:'s', b:'#', n:'#'},
+      {c:'d', b:'$', n:'$'},
+      {c:'f', b:'_', n:'_'},
+      {c:'g', b:'&', n:'&'},
+      {c:'h', b:'-', n:'-'},
+      {c:'j', b:'+', n:'+'},
+      {c:'k', b:'(', n:'('},
+      {c:'l', b:')', n:')'}
+    ],
+    [
+      {c:'shift', isShift:true},
+      {c:'z', b:'*', n:'*'},
+      {c:'x', b:'"', n:'"'},
+      {c:'c', b:'\'', n:'\'', v:['c','ç']},
+      {c:'v', b:':', n:':'},
+      {c:'b', b:';', n:';'},
+      {c:'n', b:'!', n:'!', v:['n','ñ']},
+      {c:'m', b:'?', n:'?'},
+      {c:'.', b:',', n:',', v:['.',',','?','!']}
+    ]
   ];
 
-  /* ---------------- الأرقام العربية والأرقام الإنكليزية المعتمدة والكاملة ---------------- */
+  /* ---------------- الأرقام العربية والإنكليزية الكاملة ---------------- */
   var NUM_ROWS_AR = [
     [{c:'١'},{c:'٢'},{c:'٣'},{c:'٤'},{c:'٥'},{c:'٦'},{c:'٧'},{c:'٨'},{c:'٩'},{c:'٠'}],
     [{c:'('},{c:')'},{c:'-'},{c:'/'},{c:':'},{c:'؛'},{c:'"'},{c:'!'},{c:'؟'},{c:'.'}]
@@ -764,7 +1143,8 @@
   }
   
   function showVariantPopup(anchorBtn, variants){
-    buzz(14);
+    playKeySound('tick');
+    buzz(18, 'double');
     popupEl.innerHTML = '';
     popupEl._anchor = anchorBtn;
     anchorBtn.classList.add('popup-active');
@@ -775,7 +1155,8 @@
       pressable(b, function(e){
         e.stopPropagation();
         sendCmd('type', 'char=' + encodeURIComponent(v));
-        buzz(10);
+        playKeySound('switch');
+        buzz(10, 'click');
         hideVariantPopup();
       });
       popupEl.appendChild(b);
@@ -809,21 +1190,22 @@
       btn.style.background = 'var(--accent)';
       btn.style.color = 'var(--paper)';
     }
-    // أيقونة سهم رفع الحروف الإنجليزية المتجهة
     btn.innerHTML = '<svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" style="width:18px;height:18px;"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 10.5L12 3m0 0l7.5 7.5M12 3v18"/></svg>';
     pressable(btn, function(){
       shiftMode = !shiftMode;
       renderLetters();
-      buzz(10);
+      playKeySound('tick');
+      buzz(10, 'click');
     });
     return btn;
   }
 
   function createKeyButton(item){
     var btn = document.createElement('button');
-    btn.type = 'button'; btn.className = 'key'; btn.setAttribute('tabindex','-1');
+    btn.type = 'button';
+    btn.className = 'key';
+    btn.setAttribute('tabindex','-1');
     
-    // تحديد الحروف الإنجليزية الكبيرة أو الصغيرة بناءً على حالة الـ Shift
     var charToType = item.c;
     if (currentLang === 'en' && !numMode) {
       charToType = shiftMode ? item.c.toUpperCase() : item.c.toLowerCase();
@@ -832,10 +1214,16 @@
     btn.textContent = charToType;
     btn.setAttribute('aria-label', charToType);
 
-    if(item.v && item.v.length > 1){
-      var hint = document.createElement('span');
-      hint.className = 'hint'; hint.textContent = '…';
-      btn.appendChild(hint);
+    // إضافة الشارة الدائرية الأنيقة المحفورة
+    if (!numMode && item.b) {
+      var badge = document.createElement('span');
+      badge.className = 'num-badge';
+      badge.textContent = item.b;
+      btn.appendChild(badge);
+    }
+
+    if (item.v && item.v.length > 1) {
+      btn.classList.add('has-variants');
     }
 
     var timer = null, longFired = false, startX = 0, startY = 0;
@@ -843,16 +1231,26 @@
       e.preventDefault();
       btn.classList.add('pressed');
       startX = e.clientX; startY = e.clientY; longFired = false;
-      if(item.v && item.v.length > 1){
+      
+      // الضغط المطول: إما فتح البدائل أو إدخال الرقم/الرمز الثانوي مباشرة
+      if ((item.v && item.v.length > 1) || item.n) {
         timer = setTimeout(function(){
           longFired = true;
-          // تكبير الحروف الممتدة أيضاً عند تفعيل الـ Shift
-          var targetVariants = item.v;
-          if (currentLang === 'en' && shiftMode) {
-            targetVariants = item.v.map(function(v){ return v.toUpperCase(); });
+          if (item.v && item.v.length > 1) {
+            var targetVariants = item.v.slice();
+            if (item.n && targetVariants.indexOf(item.n) === -1) {
+              targetVariants.push(item.n);
+            }
+            if (currentLang === 'en' && shiftMode) {
+              targetVariants = targetVariants.map(function(v){ return v.toUpperCase(); });
+            }
+            showVariantPopup(btn, targetVariants);
+          } else if (item.n) {
+            sendCmd('type', 'char=' + encodeURIComponent(item.n));
+            playKeySound('pop');
+            buzz(16, 'heavy');
           }
-          showVariantPopup(btn, targetVariants);
-        }, 420);
+        }, 380);
       }
     });
 
@@ -868,9 +1266,9 @@
       if(timer){ clearTimeout(timer); timer = null; }
       if(!longFired){ 
         sendCmd('type', 'char=' + encodeURIComponent(charToType)); 
-        buzz(9); 
+        playKeySound('switch');
+        buzz(8, 'tick'); 
         
-        // إعادة وضع الحروف لحالتها الصغيرة تلقائياً بعد كتابة حرف كبير واحد لسهولة التدوين المعتادة
         if (currentLang === 'en' && shiftMode) {
           shiftMode = false;
           renderLetters();
@@ -911,8 +1309,6 @@
   /* ---------------- زري تبديل الأرقام واللغة (عربي / English) ---------------- */
   pressable(toggleLangBtn, function(){
     currentLang = (currentLang === 'ar') ? 'en' : 'ar';
-    
-    // تحديث لافتات الأزرار بتفاصيل أنيقة
     toggleLangBtn.textContent = (currentLang === 'ar') ? 'EN' : 'عربي';
     
     if (numMode) {
@@ -921,10 +1317,13 @@
       toggleNumBtn.textContent = (currentLang === 'ar') ? '١٢٣' : '123';
     }
 
+    spacebar.textContent = (currentLang === 'ar') ? 'مسافة ❦ كيبورد الحكايات' : 'space • story keyboard';
+
     renderTashkeel();
     renderLiterary();
     renderLetters();
-    buzz(12);
+    playKeySound('switch');
+    buzz(12, 'click');
   });
 
   pressable(toggleNumBtn, function(){
@@ -935,10 +1334,11 @@
       toggleNumBtn.textContent = (currentLang === 'ar') ? '١٢٣' : '123';
     }
     renderLetters();
-    buzz(8);
+    playKeySound('switch');
+    buzz(10, 'click');
   });
 
-  /* ---------------- Spacebar trackpad ---------------- */
+  /* ---------------- Spacebar trackpad & tactile response ---------------- */
   var STEP = 16;
   var spX = 0, spDragging = false, spPointerId = null;
   spacebar.addEventListener('pointerdown', function(e){
@@ -956,26 +1356,40 @@
       sendCmd('cursor_move', 'delta=' + dir * steps);
       spX += (dx < 0 ? -1 : 1) * steps * STEP;
       spDragging = true;
-      buzz(5);
+      playKeySound('tick');
+      buzz(5, 'tick');
     }
   });
   spacebar.addEventListener('pointerup', function(e){
     e.preventDefault();
     spacebar.classList.remove('pressed');
     try{ spacebar.releasePointerCapture(e.pointerId); }catch(err){}
-    if(!spDragging){ sendCmd('type', 'char=' + encodeURIComponent(' ')); buzz(9); }
+    if(!spDragging){
+      sendCmd('type', 'char=' + encodeURIComponent(' '));
+      playKeySound('thud');
+      buzz(12, 'click');
+    }
     spPointerId = null;
   });
-  spacebar.addEventListener('pointercancel', function(){ spacebar.classList.remove('pressed'); spPointerId = null; });
+  spacebar.addEventListener('pointercancel', function(){
+    spacebar.classList.remove('pressed');
+    spPointerId = null;
+  });
 
   /* ---------------- Backspace (tap + hold-to-repeat) ---------------- */
   var bsTimer, bsInterval;
   backspaceBtn.addEventListener('pointerdown', function(e){
     e.preventDefault();
     backspaceBtn.classList.add('pressed');
-    sendCmd('backspace'); buzz(14);
+    sendCmd('backspace');
+    playKeySound('pop');
+    buzz(14, 'heavy');
     bsTimer = setTimeout(function(){
-      bsInterval = setInterval(function(){ sendCmd('backspace'); buzz(8); }, 75);
+      bsInterval = setInterval(function(){
+        sendCmd('backspace');
+        playKeySound('pop');
+        buzz(8, 'tick');
+      }, 75);
     }, 400);
   });
   ['pointerup','pointercancel','pointerleave'].forEach(function(evt){
@@ -987,7 +1401,11 @@
   });
 
   /* ---------------- Enter ---------------- */
-  pressable(enterBtn, function(){ sendCmd('newline'); buzz(9); });
+  pressable(enterBtn, function(){
+    sendCmd('newline');
+    playKeySound('pop');
+    buzz(12, 'click');
+  });
 
   /* ---------------- Voice dictation ---------------- */
   var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -1006,16 +1424,22 @@
 
   micBtn.addEventListener('pointerup', function(){
     if (window.AndroidInterface && window.AndroidInterface.startSpeechRecognition) {
-      buzz(12);
+      playKeySound('pop');
+      buzz(14, 'click');
       window.AndroidInterface.startSpeechRecognition();
     } else if(SR){
       if(listening){ recognition.stop(); setListening(false); }
       else {
-        try{ recognition.start(); setListening(true); buzz(12); }
+        try{
+          recognition.start();
+          setListening(true);
+          playKeySound('pop');
+          buzz(14, 'click');
+        }
         catch(err){ /* ignore */ }
       }
     } else {
-      buzz(5);
+      buzz(5, 'tick');
     }
   });
 
