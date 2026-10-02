@@ -66,12 +66,14 @@ fun CustomizationScreen(
 
     val isDark = MaterialTheme.colorScheme.background == Color(0xFF111718)
 
-    Box(
+    BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
             .linenBackground(isDark)
     ) {
+        val minScreenHeight = maxHeight
+
         // TOP BACKDROP GRADIENT & MAGNETIC SCROLL DISSOLVE
         Box(
             modifier = Modifier
@@ -104,405 +106,273 @@ fun CustomizationScreen(
                 .fillMaxSize()
                 .verticalScroll(scrollState)
                 .padding(horizontal = 20.dp)
-                .padding(top = 108.dp, bottom = 56.dp),
-            verticalArrangement = Arrangement.spacedBy(22.dp)
+                .padding(top = 80.dp, bottom = 32.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // SECTION 1: Built-in Themes Selection (Segmented Switcher Card)
-            Card(
-                shape = RoundedCornerShape(30.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)),
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .testTag("settings_card_theme")
+                    .defaultMinSize(minHeight = minScreenHeight - 112.dp),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Column(
-                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 22.dp)
+                // SECTION 1: Custom Wallpaper Background Integration Card
+                Card(
+                    shape = RoundedCornerShape(28.dp),
+                    colors = CardDefaults.cardColors(containerColor = AppleCarbon),
+                    border = BorderStroke(1.dp, AppleSteel),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("settings_card_custom_bg")
                 ) {
-                    // Upper row: Title and currently active theme name
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 16.dp, start = 4.dp, end = 4.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                    Column(
+                        modifier = Modifier.padding(24.dp)
                     ) {
-                        Text(
-                            text = "أجواء الدار",
-                            fontSize = 16.sp,
-                            fontFamily = ThmanyahSansFontFamily,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                        
-                        val activeThemeName = when (currentTheme) {
-                            "royal_classic" -> "كلاسيكي ملكي"
-                            "night_whisper" -> "همس الليالي"
-                            "apple_dark" -> "داكن آبل"
-                            else -> "كلاسيكي ملكي"
-                        }
-                        Text(
-                            text = activeThemeName,
-                            fontSize = 14.sp,
-                            fontFamily = ThmanyahSansFontFamily,
-                            fontWeight = FontWeight.Normal,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                        )
-                    }
-
-                    // Track Container
-                    val trackBgColor = if (currentTheme == "royal_classic") Color(0x0D121A1B) else Color(0x66000000)
-                    val trackBorderColor = if (currentTheme == "royal_classic") Color(0x1F121A1B) else Color(0x14FFFFFF)
-                    
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(48.dp)
-                            .background(trackBgColor, shape = CircleShape)
-                            .border(BorderStroke(0.5.dp, trackBorderColor), shape = CircleShape)
-                            .padding(4.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        // Button 3: كلاسيكى • (Placed on the right in RTL Row)
-                        val button3Interaction = remember { MutableInteractionSource() }
-                        val isSelected3 = currentTheme == "royal_classic"
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxHeight()
-                                .clip(CircleShape)
-                                .background(if (isSelected3) MaterialTheme.colorScheme.primary else Color.Transparent)
-                                .appleElasticPinch(button3Interaction)
-                                .clickable(
-                                    interactionSource = button3Interaction,
-                                    indication = null
-                                ) { onThemeChanged("royal_classic") },
-                            contentAlignment = Alignment.Center
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth()
                         ) {
+                            Icon(
+                                imageVector = Icons.Default.Image,
+                                contentDescription = "صورة الخلفية",
+                                tint = ApplePorcelain,
+                                modifier = Modifier.size(22.dp)
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
                             Text(
-                                text = "كلاسيكى •",
-                                color = if (isSelected3) Color.White else {
-                                    if (currentTheme == "royal_classic") Color(0xA6121A1B) else Color(0xA6F5F5F5)
-                                },
-                                fontSize = 14.sp,
+                                text = "خلفية الكيبورد المخصصة",
+                                fontSize = 16.sp,
                                 fontFamily = ThmanyahSansFontFamily,
                                 fontWeight = FontWeight.Bold,
-                                textAlign = TextAlign.Center
-                            )
-                        }
-
-                        // Button 2: • ليلى • (Placed in the middle in RTL Row)
-                        val button2Interaction = remember { MutableInteractionSource() }
-                        val isSelected2 = currentTheme == "night_whisper"
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxHeight()
-                                .clip(CircleShape)
-                                .background(if (isSelected2) MaterialTheme.colorScheme.primary else Color.Transparent)
-                                .appleElasticPinch(button2Interaction)
-                                .clickable(
-                                    interactionSource = button2Interaction,
-                                    indication = null
-                                ) { onThemeChanged("night_whisper") },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = "• ليلى •",
-                                color = if (isSelected2) Color.White else {
-                                    if (currentTheme == "royal_classic") Color(0xA6121A1B) else Color(0xA6F5F5F5)
-                                },
-                                fontSize = 14.sp,
-                                fontFamily = ThmanyahSansFontFamily,
-                                fontWeight = FontWeight.Bold,
-                                textAlign = TextAlign.Center
-                            )
-                        }
-
-                        // Button 1: • آبل داكن (Placed on the left in RTL Row)
-                        val button1Interaction = remember { MutableInteractionSource() }
-                        val isSelected1 = currentTheme == "apple_dark"
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxHeight()
-                                .clip(CircleShape)
-                                .background(if (isSelected1) MaterialTheme.colorScheme.primary else Color.Transparent)
-                                .appleElasticPinch(button1Interaction)
-                                .clickable(
-                                    interactionSource = button1Interaction,
-                                    indication = null
-                                ) { onThemeChanged("apple_dark") },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = "• آبل داكن",
-                                color = if (isSelected1) Color.White else {
-                                    if (currentTheme == "royal_classic") Color(0xA6121A1B) else Color(0xA6F5F5F5)
-                                },
-                                fontSize = 14.sp,
-                                fontFamily = ThmanyahSansFontFamily,
-                                fontWeight = FontWeight.Bold,
-                                textAlign = TextAlign.Center
-                            )
-                        }
-                    }
-                }
-            }
-
-            // SECTION 2: Custom Wallpaper Background Integration Card
-            Card(
-                shape = RoundedCornerShape(30.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("settings_card_custom_bg")
-            ) {
-                Column(
-                    modifier = Modifier.padding(24.dp)
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Image,
-                            contentDescription = "صورة الخلفية",
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(22.dp)
-                        )
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Text(
-                            text = "خلفية الكيبورد المخصصة",
-                            fontSize = 16.sp,
-                            fontFamily = ThmanyahSansFontFamily,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(18.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        val selectBgInteraction = remember { MutableInteractionSource() }
-                        Button(
-                            onClick = {
-                                pickMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-                            },
-                            shape = RoundedCornerShape(20.dp),
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(48.dp)
-                                .appleElasticPinch(selectBgInteraction)
-                                .testTag("btn_select_bg"),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.primary,
-                                contentColor = MaterialTheme.colorScheme.onPrimary
-                            ),
-                            interactionSource = selectBgInteraction
-                        ) {
-                            Text(
-                                text = "اختيار صورة مخصصة ❦",
-                                fontSize = 14.sp,
-                                fontFamily = ThmanyahSansFontFamily,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-
-                        // Clear Background Button
-                        if (hasCustomBg) {
-                            val clearBgInteraction = remember { MutableInteractionSource() }
-                            OutlinedButton(
-                                onClick = onClearBg,
-                                shape = RoundedCornerShape(20.dp),
-                                modifier = Modifier
-                                    .height(48.dp)
-                                    .width(60.dp)
-                                    .appleElasticPinch(clearBgInteraction)
-                                    .testTag("btn_clear_bg"),
-                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.5f)),
-                                colors = ButtonDefaults.outlinedButtonColors(
-                                    contentColor = MaterialTheme.colorScheme.error
-                                ),
-                                contentPadding = PaddingValues(0.dp),
-                                interactionSource = clearBgInteraction
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Delete,
-                                    contentDescription = "مسح الخلفية",
-                                    tint = MaterialTheme.colorScheme.error,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-                        }
-                    }
-
-                    if (hasCustomBg) {
-                        Spacer(modifier = Modifier.height(24.dp))
-
-                        // BACKGROUND OPACITY SLIDER
-                        Column {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = "مدى شفافية وتعتيم أزرار اللوحة",
-                                    fontSize = 14.sp,
-                                    fontFamily = ThmanyahSansFontFamily,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                                Text(
-                                    text = "${(currentOpacity * 100).toInt()}%",
-                                    fontSize = 14.sp,
-                                    fontFamily = ThmanyahSansFontFamily,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Slider(
-                                value = currentOpacity,
-                                onValueChange = onOpacityChanged,
-                                valueRange = 0.05f..0.99f,
-                                colors = SliderDefaults.colors(
-                                    thumbColor = MaterialTheme.colorScheme.primary,
-                                    activeTrackColor = MaterialTheme.colorScheme.primary,
-                                    inactiveTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.24f)
-                                ),
-                                modifier = Modifier.testTag("slider_opacity")
+                                color = ApplePorcelain
                             )
                         }
 
                         Spacer(modifier = Modifier.height(18.dp))
 
-                        // BACKGROUND BLUR SLIDER
-                        Column {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            val selectBgInteraction = remember { MutableInteractionSource() }
+                            Button(
+                                onClick = {
+                                    pickMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                                },
+                                shape = RoundedCornerShape(170.dp),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(48.dp)
+                                    .appleElasticPinch(selectBgInteraction)
+                                    .testTag("btn_select_bg"),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = AppleWhite,
+                                    contentColor = AppleObsidian
+                                ),
+                                interactionSource = selectBgInteraction
                             ) {
                                 Text(
-                                    text = "مدى ضبابية الخلفية وغبشها (Blur)",
+                                    text = "اختيار صورة مخصصة ❦",
                                     fontSize = 14.sp,
                                     fontFamily = ThmanyahSansFontFamily,
                                     fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                                Text(
-                                    text = "${currentBlur}px",
-                                    fontSize = 14.sp,
-                                    fontFamily = ThmanyahSansFontFamily,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    fontWeight = FontWeight.Bold
+                                    color = AppleObsidian
                                 )
                             }
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Slider(
-                                value = currentBlur.toFloat(),
-                                onValueChange = { onBlurChanged(it.toInt()) },
-                                valueRange = 0f..25f,
-                                steps = 25,
-                                colors = SliderDefaults.colors(
-                                    thumbColor = MaterialTheme.colorScheme.primary,
-                                    activeTrackColor = MaterialTheme.colorScheme.primary,
-                                    inactiveTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.24f)
-                                ),
-                                modifier = Modifier.testTag("slider_blur")
-                            )
+
+                            // Clear Background Button
+                            if (hasCustomBg) {
+                                val clearBgInteraction = remember { MutableInteractionSource() }
+                                OutlinedButton(
+                                    onClick = onClearBg,
+                                    shape = RoundedCornerShape(170.dp),
+                                    modifier = Modifier
+                                        .height(48.dp)
+                                        .width(60.dp)
+                                        .appleElasticPinch(clearBgInteraction)
+                                        .testTag("btn_clear_bg"),
+                                    border = BorderStroke(1.dp, Color(0xFFEF4444).copy(alpha = 0.5f)),
+                                    colors = ButtonDefaults.outlinedButtonColors(
+                                        contentColor = Color(0xFFEF4444)
+                                    ),
+                                    contentPadding = PaddingValues(0.dp),
+                                    interactionSource = clearBgInteraction
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Delete,
+                                        contentDescription = "مسح الخلفية",
+                                        tint = Color(0xFFEF4444),
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                            }
+                        }
+
+                        if (hasCustomBg) {
+                            Spacer(modifier = Modifier.height(24.dp))
+
+                            // BACKGROUND OPACITY SLIDER
+                            Column {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "مدى شفافية وتعتيم أزرار اللوحة",
+                                        fontSize = 14.sp,
+                                        fontFamily = ThmanyahSansFontFamily,
+                                        fontWeight = FontWeight.Bold,
+                                        color = ApplePorcelain
+                                    )
+                                    Text(
+                                        text = "${(currentOpacity * 100).toInt()}%",
+                                        fontSize = 14.sp,
+                                        fontFamily = ThmanyahSansFontFamily,
+                                        color = AppleWhite,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Slider(
+                                    value = currentOpacity,
+                                    onValueChange = onOpacityChanged,
+                                    valueRange = 0.05f..0.99f,
+                                    colors = SliderDefaults.colors(
+                                        thumbColor = AppleWhite,
+                                        activeTrackColor = AppleWhite,
+                                        inactiveTrackColor = AppleSteel
+                                    ),
+                                    modifier = Modifier.testTag("slider_opacity")
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(18.dp))
+
+                            // BACKGROUND BLUR SLIDER
+                            Column {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "مدى ضبابية الخلفية وغبشها (Blur)",
+                                        fontSize = 14.sp,
+                                        fontFamily = ThmanyahSansFontFamily,
+                                        fontWeight = FontWeight.Bold,
+                                        color = ApplePorcelain
+                                    )
+                                    Text(
+                                        text = "${currentBlur}px",
+                                        fontSize = 14.sp,
+                                        fontFamily = ThmanyahSansFontFamily,
+                                        color = AppleWhite,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Slider(
+                                    value = currentBlur.toFloat(),
+                                    onValueChange = { onBlurChanged(it.toInt()) },
+                                    valueRange = 0f..25f,
+                                    steps = 25,
+                                    colors = SliderDefaults.colors(
+                                        thumbColor = AppleWhite,
+                                        activeTrackColor = AppleWhite,
+                                        inactiveTrackColor = AppleSteel
+                                    ),
+                                    modifier = Modifier.testTag("slider_blur")
+                                )
+                            }
                         }
                     }
                 }
-            }
 
-            // SECTION 3: Haptic Feedback Controls
-            Card(
-                shape = RoundedCornerShape(30.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(
-                    modifier = Modifier.padding(24.dp)
+                Spacer(modifier = Modifier.height(20.dp))
+
+                // SECTION 2: Haptic Feedback Controls
+                Card(
+                    shape = RoundedCornerShape(28.dp),
+                    colors = CardDefaults.cardColors(containerColor = AppleCarbon),
+                    border = BorderStroke(1.dp, AppleSteel),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.fillMaxWidth()
+                    Column(
+                        modifier = Modifier.padding(24.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Vibration,
-                            contentDescription = "الاهتزاز",
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(22.dp)
-                        )
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Text(
-                            text = "اهتزاز مفاتيح الكيبورد",
-                            fontSize = 16.sp,
-                            fontFamily = ThmanyahSansFontFamily,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Vibration,
+                                contentDescription = "الاهتزاز",
+                                tint = ApplePorcelain,
+                                modifier = Modifier.size(22.dp)
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Text(
+                                text = "اهتزاز مفاتيح الكيبورد",
+                                fontSize = 16.sp,
+                                fontFamily = ThmanyahSansFontFamily,
+                                fontWeight = FontWeight.Bold,
+                                color = ApplePorcelain
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(18.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "شدة الاهتزاز عند النقر والكتابة",
+                                fontSize = 14.sp,
+                                fontFamily = ThmanyahSansFontFamily,
+                                fontWeight = FontWeight.Bold,
+                                color = ApplePorcelain
+                            )
+                            Text(
+                                text = if (hapticIntensity == 0) "إيقاف الاهتزاز" else "${hapticIntensity}ms",
+                                fontSize = 14.sp,
+                                fontFamily = ThmanyahSansFontFamily,
+                                color = AppleWhite,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Slider(
+                            value = hapticIntensity.toFloat(),
+                            onValueChange = { onHapticChanged(it.toInt()) },
+                            valueRange = 0f..100f,
+                            steps = 20,
+                            colors = SliderDefaults.colors(
+                                thumbColor = AppleWhite,
+                                activeTrackColor = AppleWhite,
+                                inactiveTrackColor = AppleSteel
+                            ),
+                            modifier = Modifier.testTag("slider_haptic")
                         )
                     }
-
-                    Spacer(modifier = Modifier.height(18.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "شدة الاهتزاز عند النقر والكتابة",
-                            fontSize = 14.sp,
-                            fontFamily = ThmanyahSansFontFamily,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Text(
-                            text = if (hapticIntensity == 0) "إيقاف الاهتزاز" else "${hapticIntensity}ms",
-                            fontSize = 14.sp,
-                            fontFamily = ThmanyahSansFontFamily,
-                            color = MaterialTheme.colorScheme.primary,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Slider(
-                        value = hapticIntensity.toFloat(),
-                        onValueChange = { onHapticChanged(it.toInt()) },
-                        valueRange = 0f..100f,
-                        steps = 20,
-                        colors = SliderDefaults.colors(
-                            thumbColor = MaterialTheme.colorScheme.primary,
-                            activeTrackColor = MaterialTheme.colorScheme.primary,
-                            inactiveTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.24f)
-                        ),
-                        modifier = Modifier.testTag("slider_haptic")
-                    )
                 }
+
+                Spacer(modifier = Modifier.height(36.dp))
+
+                // Literary Signature Footer
+                Text(
+                    text = "دار الحكايات ❦ تخصيص لوحة مفاتيح الرواية",
+                    fontSize = 12.sp,
+                    fontFamily = ThmanyahSansFontFamily,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f),
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
             }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Literary Signature Footer
-            Text(
-                text = "دار الحكايات ❦ تخصيص لوحة مفاتيح الرواية",
-                fontSize = 12.sp,
-                fontFamily = ThmanyahSansFontFamily,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f),
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth()
-            )
         }
 
         // FLOATING TOP CAPSULE HEADER SYSTEM (نظام الكبسولات العلوية الفاخرة)
@@ -519,12 +389,12 @@ fun CustomizationScreen(
                 Box(
                     modifier = Modifier
                         .height(44.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.94f))
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(AppleGraphite.copy(alpha = 0.94f))
                         .border(
-                            width = 0.5.dp,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
-                            shape = CircleShape
+                            width = 1.dp,
+                            color = AppleSteel,
+                            shape = RoundedCornerShape(20.dp)
                         )
                         .padding(horizontal = 20.dp),
                     contentAlignment = Alignment.Center
@@ -536,7 +406,7 @@ fun CustomizationScreen(
                             fontWeight = FontWeight.Black,
                             fontSize = 15.sp
                         ),
-                        color = MaterialTheme.colorScheme.onSurface
+                        color = ApplePorcelain
                     )
                 }
 
@@ -546,10 +416,10 @@ fun CustomizationScreen(
                     modifier = Modifier
                         .size(44.dp)
                         .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.94f))
+                        .background(AppleGraphite.copy(alpha = 0.94f))
                         .border(
-                            width = 0.5.dp,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
+                            width = 1.dp,
+                            color = AppleSteel,
                             shape = CircleShape
                         )
                         .appleElasticPinch(backInteraction)
@@ -564,7 +434,7 @@ fun CustomizationScreen(
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "رجوع",
-                        tint = MaterialTheme.colorScheme.onSurface,
+                        tint = ApplePorcelain,
                         modifier = Modifier.size(20.dp)
                     )
                 }

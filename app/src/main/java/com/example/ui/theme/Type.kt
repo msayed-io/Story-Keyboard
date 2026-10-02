@@ -24,43 +24,49 @@ val ThmanyahSerifTextFontFamily = FontFamily(
     Font(R.font.thmanyah_serif_text_medium, FontWeight.Medium)
 )
 
-// Set of Material typography styles to start with
+// Set of Material typography styles following Bevel Design System specifications
 val Typography = Typography(
     displayLarge = TextStyle(
         fontFamily = ThmanyahSerifDisplayFontFamily,
-        fontWeight = FontWeight.Black,
-        fontSize = 57.sp,
-        lineHeight = 64.sp
+        fontWeight = FontWeight.Bold,
+        fontSize = 64.sp,
+        lineHeight = 64.sp,
+        letterSpacing = (-1.92).sp
     ),
     displayMedium = TextStyle(
         fontFamily = ThmanyahSerifDisplayFontFamily,
         fontWeight = FontWeight.Bold,
-        fontSize = 45.sp,
-        lineHeight = 52.sp
+        fontSize = 40.sp,
+        lineHeight = 40.sp,
+        letterSpacing = (-1.2).sp
     ),
     displaySmall = TextStyle(
         fontFamily = ThmanyahSerifDisplayFontFamily,
         fontWeight = FontWeight.Bold,
-        fontSize = 36.sp,
-        lineHeight = 44.sp
+        fontSize = 32.sp,
+        lineHeight = 32.sp,
+        letterSpacing = (-0.9).sp
     ),
     headlineLarge = TextStyle(
         fontFamily = ThmanyahSerifDisplayFontFamily,
         fontWeight = FontWeight.Bold,
-        fontSize = 32.sp,
-        lineHeight = 40.sp
+        fontSize = 28.sp,
+        lineHeight = 32.sp,
+        letterSpacing = (-0.4).sp
     ),
     headlineMedium = TextStyle(
         fontFamily = ThmanyahSerifDisplayFontFamily,
         fontWeight = FontWeight.Bold,
-        fontSize = 28.sp,
-        lineHeight = 36.sp
+        fontSize = 24.sp,
+        lineHeight = 28.sp,
+        letterSpacing = (-0.24).sp
     ),
     headlineSmall = TextStyle(
         fontFamily = ThmanyahSerifDisplayFontFamily,
         fontWeight = FontWeight.Bold,
-        fontSize = 24.sp,
-        lineHeight = 32.sp
+        fontSize = 20.sp,
+        lineHeight = 24.sp,
+        letterSpacing = (-0.2).sp
     ),
     titleLarge = TextStyle(
         fontFamily = ThmanyahSerifTextFontFamily,
@@ -72,7 +78,8 @@ val Typography = Typography(
         fontFamily = ThmanyahSerifTextFontFamily,
         fontWeight = FontWeight.Medium,
         fontSize = 18.sp,
-        lineHeight = 24.sp
+        lineHeight = 25.2.sp,
+        letterSpacing = 0.16.sp
     ),
     titleSmall = TextStyle(
         fontFamily = ThmanyahSerifTextFontFamily,
@@ -83,14 +90,14 @@ val Typography = Typography(
     bodyLarge = TextStyle(
         fontFamily = ThmanyahSansFontFamily,
         fontWeight = FontWeight.Normal,
-        fontSize = 16.sp,
-        lineHeight = 24.sp
+        fontSize = 18.sp,
+        lineHeight = 25.2.sp
     ),
     bodyMedium = TextStyle(
         fontFamily = ThmanyahSansFontFamily,
         fontWeight = FontWeight.Normal,
-        fontSize = 14.sp,
-        lineHeight = 20.sp
+        fontSize = 16.sp,
+        lineHeight = 22.4.sp
     ),
     bodySmall = TextStyle(
         fontFamily = ThmanyahSansFontFamily,
@@ -100,9 +107,9 @@ val Typography = Typography(
     ),
     labelLarge = TextStyle(
         fontFamily = ThmanyahSansFontFamily,
-        fontWeight = FontWeight.Bold,
-        fontSize = 14.sp,
-        lineHeight = 20.sp
+        fontWeight = FontWeight.Medium,
+        fontSize = 16.sp,
+        lineHeight = 22.4.sp
     ),
     labelMedium = TextStyle(
         fontFamily = ThmanyahSansFontFamily,
@@ -117,3 +124,4 @@ val Typography = Typography(
         lineHeight = 16.sp
     )
 )
+

@@ -143,7 +143,7 @@ fun ScannerScreen(
             )
         }
 
-        // FLOATING TOP CAPSULE HEADER SYSTEM (نظام الكبسولات العلوية الطافية)
+        // FLOATING TOP CAPSULE HEADER SYSTEM (44dp Apple Utility Navigation)
         CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
             Row(
                 modifier = Modifier
@@ -157,12 +157,12 @@ fun ScannerScreen(
                 Box(
                     modifier = Modifier
                         .height(44.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.94f))
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(AppleGraphite.copy(alpha = 0.94f))
                         .border(
-                            width = 0.5.dp,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
-                            shape = CircleShape
+                            width = 1.dp,
+                            color = AppleSteel,
+                            shape = RoundedCornerShape(20.dp)
                         )
                         .padding(horizontal = 20.dp),
                     contentAlignment = Alignment.Center
@@ -174,7 +174,7 @@ fun ScannerScreen(
                             fontWeight = FontWeight.Black,
                             fontSize = 15.sp
                         ),
-                        color = MaterialTheme.colorScheme.onSurface
+                        color = ApplePorcelain
                     )
                 }
 
@@ -184,10 +184,10 @@ fun ScannerScreen(
                     modifier = Modifier
                         .size(44.dp)
                         .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.94f))
+                        .background(AppleGraphite.copy(alpha = 0.94f))
                         .border(
-                            width = 0.5.dp,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
+                            width = 1.dp,
+                            color = AppleSteel,
                             shape = CircleShape
                         )
                         .appleElasticPinch(backInteraction)
@@ -202,7 +202,7 @@ fun ScannerScreen(
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "رجوع",
-                        tint = MaterialTheme.colorScheme.onSurface,
+                        tint = ApplePorcelain,
                         modifier = Modifier.size(20.dp)
                     )
                 }
@@ -250,15 +250,15 @@ fun PermissionRequestView(
         val btnInteraction = remember { MutableInteractionSource() }
         Button(
             onClick = onRequestPermission,
-            shape = RoundedCornerShape(24.dp),
+            shape = RoundedCornerShape(170.dp),
             modifier = Modifier
                 .fillMaxWidth()
                 .height(52.dp)
                 .appleElasticPinch(btnInteraction)
                 .testTag("btn_request_permission"),
             colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary
+                containerColor = AppleWhite,
+                contentColor = AppleObsidian
             ),
             interactionSource = btnInteraction
         ) {
@@ -266,7 +266,8 @@ fun PermissionRequestView(
                 text = "السماح باستخدام الكاميرا ❦",
                 fontSize = 15.sp,
                 fontFamily = ThmanyahSansFontFamily,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
+                color = AppleObsidian
             )
         }
     }
@@ -287,7 +288,7 @@ fun PermissionRationaleView(
             imageVector = Icons.Default.QrCodeScanner,
             contentDescription = "ماسح الـ QR",
             modifier = Modifier.size(80.dp),
-            tint = MaterialTheme.colorScheme.secondary
+            tint = AppleElectricLink
         )
         Spacer(modifier = Modifier.height(24.dp))
         Text(
@@ -295,14 +296,14 @@ fun PermissionRationaleView(
             fontSize = 22.sp,
             fontFamily = ThmanyahSerifDisplayFontFamily,
             fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onBackground
+            color = ApplePorcelain
         )
         Spacer(modifier = Modifier.height(10.dp))
         Text(
             text = "تطبيق كيبورد الحكايات يستخدم الكاميرا حصرياً لمسح الـ QR للاتصال الفوري والسريع بجهاز التابلت المحلي دون كتابة معقدة لعنوان الـ IP.",
             fontSize = 14.sp,
             fontFamily = ThmanyahSansFontFamily,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = AppleAsh,
             textAlign = TextAlign.Center,
             lineHeight = 22.sp
         )
@@ -311,15 +312,15 @@ fun PermissionRationaleView(
         val btnInteraction = remember { MutableInteractionSource() }
         Button(
             onClick = onRequestPermission,
-            shape = RoundedCornerShape(24.dp),
+            shape = RoundedCornerShape(170.dp),
             modifier = Modifier
                 .fillMaxWidth()
                 .height(52.dp)
                 .appleElasticPinch(btnInteraction)
                 .testTag("btn_request_permission_rationale"),
             colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary
+                containerColor = AppleWhite,
+                contentColor = AppleObsidian
             ),
             interactionSource = btnInteraction
         ) {
@@ -327,7 +328,8 @@ fun PermissionRationaleView(
                 text = "متابعة وطلب الإذن ❦",
                 fontSize = 15.sp,
                 fontFamily = ThmanyahSansFontFamily,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
+                color = AppleObsidian
             )
         }
     }
@@ -530,7 +532,7 @@ fun CameraScannerView(
                     .size(54.dp)
                     .clip(CircleShape)
                     .background(
-                        if (isTorchEnabled) MaterialTheme.colorScheme.primary.copy(alpha = 0.95f)
+                        if (isTorchEnabled) AppleWhite
                         else Color.Black.copy(alpha = 0.65f)
                     )
                     .border(
@@ -554,7 +556,7 @@ fun CameraScannerView(
                 Icon(
                     imageVector = Icons.Default.FlashlightOn,
                     contentDescription = "كشاف الإضاءة",
-                    tint = if (isTorchEnabled) Color.Black else Color.White,
+                    tint = if (isTorchEnabled) AppleObsidian else Color.White,
                     modifier = Modifier.size(24.dp)
                 )
             }
@@ -599,7 +601,7 @@ fun ScanningOverlay(
     onZoomChange: (Float) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val strokeColor = MaterialTheme.colorScheme.primary
+    val strokeColor = AppleWhite
 
     // Animated laser beam sweeping vertically
     val infiniteTransition = rememberInfiniteTransition(label = "scannerLaser")
