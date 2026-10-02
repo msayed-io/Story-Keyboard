@@ -24,6 +24,8 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -75,6 +77,7 @@ import java.net.URLEncoder
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import kotlin.math.PI
+import kotlin.math.abs
 import kotlin.math.exp
 import kotlin.math.sin
 import kotlin.random.Random
@@ -108,6 +111,15 @@ fun KeyboardScreen(
     val context = LocalContext.current
     var currentMode by remember { mutableStateOf(KeyboardMode.ARABIC) }
     var isShifted by remember { mutableStateOf(false) }
+
+    // One official path: the tablet shows its remote pointer ONLY while the 🖱️
+    // tab is open, and hides it again the moment we leave the tab or the screen.
+    LaunchedEffect(currentMode) {
+        onSendCommand("mouse_mode", "enabled=${if (currentMode == KeyboardMode.TRACKPAD) 1 else 0}")
+    }
+    DisposableEffect(Unit) {
+        onDispose { onSendCommand("mouse_mode", "enabled=0") }
+    }
     var pressedKeyLabel by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
 
@@ -862,6 +874,16 @@ private fun StudioTrackpadLayout(
     val context = LocalContext.current
     // Ultra-responsive 160Hz polling loop using AtomicIntegerArray
     val movementState = remember { java.util.concurrent.atomic.AtomicIntegerArray(2) }
+    // Drag = the tablet keeps the left button held while the finger moves.
+    var isDragging by remember { mutableStateOf(false) }
+
+    // Leaving the tab can never leave the tablet with a stuck pressed button.
+    DisposableEffect(Unit) {
+        onDispose {
+            onSendCommand("mouse_up", "button=left")
+            onSendCommand("mouse_mode", "enabled=0")
+        }
+    }
 
     LaunchedEffect(Unit) {
         while (true) {
@@ -897,6 +919,8 @@ private fun StudioTrackpadLayout(
                         onTap = {
                             vibrate()
                             KeyboardSoundEffect.playClick(context, "standard")
+                            // Fires immediately — the tablet turns two quick taps
+                            // into a native double click, so taps never lag.
                             onSendCommand("mouse_click", "button=left")
                         }
                     )
@@ -911,6 +935,39 @@ private fun StudioTrackpadLayout(
                             movementState.addAndGet(1, dy)
                         }
                     )
+                }
+                // Two-finger swipe = mouse wheel (one finger keeps moving the pointer).
+                .pointerInput(Unit) {
+                    awaitEachGesture {
+                        awaitFirstDown(requireUnconsumed = false)
+                        var lastAverageY = 0f
+                        var scrolling = false
+                        var lastSentAt = 0L
+                        while (true) {
+                            val event = awaitPointerEvent()
+                            val pressed = event.changes.filter { it.pressed }
+                            if (pressed.isEmpty()) break
+                            if (pressed.size >= 2) {
+                                val averageY = pressed.map { it.position.y }.average().toFloat()
+                                if (!scrolling) {
+                                    scrolling = true
+                                } else {
+                                    val dy = averageY - lastAverageY
+                                    if (abs(dy) >= 1.5f) {
+                                        val now = System.currentTimeMillis()
+                                        if (now - lastSentAt >= 16L) {
+                                            lastSentAt = now
+                                            onSendCommand("mouse_scroll", "deltaY=${(-dy * 3f).toInt()}")
+                                        }
+                                    }
+                                    pressed.forEach { it.consume() }
+                                }
+                                lastAverageY = averageY
+                            } else {
+                                scrolling = false
+                            }
+                        }
+                    }
                 },
             contentAlignment = Alignment.Center
         ) {
@@ -923,7 +980,7 @@ private fun StudioTrackpadLayout(
                 )
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
-                    text = "لوحة الماوس باللمس (اسحبي للتحكم بالمؤشر بالتابلت)",
+                    text = "اسحبي بإصبع للتحكم بالمؤشر • بإصبعين للتمرير",
                     fontSize = 12.sp,
                     fontFamily = ThmanyahSansFontFamily,
                     color = palette.keyGlyphColor.copy(alpha = 0.85f)
@@ -976,6 +1033,43 @@ private fun StudioTrackpadLayout(
                         text = "نقرة يمين (Right Click)",
                         fontWeight = FontWeight.Bold,
                         color = palette.keyGlyphColor,
+                        fontFamily = ThmanyahSansFontFamily,
+                        fontSize = 12.sp
+                    )
+                }
+            }
+        }
+
+        // Drag (hold) toggle: press once to grab, press again to release.
+        Surface(
+            onClick = {
+                val next = !isDragging
+                isDragging = next
+                vibrate()
+                KeyboardSoundEffect.playClick(context, "standard")
+                onSendCommand(if (next) "mouse_down" else "mouse_up", "button=left")
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(40.dp),
+            shape = RoundedCornerShape(20.dp),
+            color = if (isDragging) palette.accentColor else palette.modifierKeycapBg,
+            border = borderFromColor(palette.accentColor.copy(alpha = if (isDragging) 1f else 0.6f)),
+            shadowElevation = 2.dp
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = if (isDragging) Icons.Default.PanTool else Icons.Default.OpenWith,
+                        contentDescription = null,
+                        tint = if (isDragging) palette.accentGlyphColor else palette.keyGlyphColor,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = if (isDragging) "إفلات الآن (Release)" else "سحب وإفلات (Drag)",
+                        fontWeight = FontWeight.Bold,
+                        color = if (isDragging) palette.accentGlyphColor else palette.keyGlyphColor,
                         fontFamily = ThmanyahSansFontFamily,
                         fontSize = 12.sp
                     )
