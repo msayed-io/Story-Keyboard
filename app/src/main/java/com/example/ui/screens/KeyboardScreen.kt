@@ -51,6 +51,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
@@ -245,6 +246,26 @@ fun KeyboardScreen(
     // الصورة تُفكّ إلى Bitmap لأن محرّك الزجاج يعالج بكسلها قبل عرضها.
     val bgBitmap: Bitmap? = remember(bgBase64) { decodeBase64Bitmap(bgBase64) }
 
+    // ما وراء الزجاج: صورة الكاتبة مموّهة، تُبنى مرة واحدة وتقرأ منها كل بطاقة منطقتها.
+    val screenSizePx = rememberScreenSizePx()
+    val glassImage = rememberGlassImage(
+        sourceBitmap = bgBitmap,
+        sourceKey = "keyboard-${bgBase64.length}-${bgBase64.hashCode()}",
+        targetWidthPx = screenSizePx.first,
+        targetHeightPx = screenSizePx.second,
+        blurRadiusPx = blur
+    )
+    val glassSampler = remember(glassImage, opacity) {
+        glassImage?.let {
+            GlassSampler(
+                image = it,
+                pxPerNodePx = it.width.toFloat() / screenSizePx.first.coerceAtLeast(1),
+                originInWindow = Offset.Zero,
+                opacity = opacity
+            )
+        }
+    }
+
     // Preload Realistic Keyboard Click Sound System
     LaunchedEffect(Unit) {
         KeyboardSoundEffect.init(context.applicationContext)
@@ -274,7 +295,10 @@ fun KeyboardScreen(
     }
 
     // Enforce LTR Layout Direction for the entire keyboard screen to prevent mirroring on Arabic system phones
-    CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+    CompositionLocalProvider(
+        LocalLayoutDirection provides LayoutDirection.Ltr,
+        LocalGlassSampler provides glassSampler
+    ) {
         Box(
             modifier = modifier
                 .fillMaxSize()
@@ -288,14 +312,8 @@ fun KeyboardScreen(
         // بدرجة الشفافية المختارة + نويز رقيق يمنع التعرّجات.
         // =============================================================
         if (bgBitmap != null) {
-            GlassBackdrop(
-                sourceBitmap = bgBitmap,
-                sourceKey = "keyboard-${bgBase64.length}-${bgBase64.hashCode()}",
-                opacity = opacity,
-                blurRadiusPx = blur,
-                tintColor = palette.canvasBackground,
-                modifier = Modifier.fillMaxSize()
-            )
+            // الخلفية واضحة تماماً: التمويه يعيش *داخل* البطاقات فقط.
+            GlassWallpaper(bitmap = bgBitmap, modifier = Modifier.fillMaxSize())
         } else {
             Box(
                 modifier = Modifier
@@ -324,8 +342,15 @@ fun KeyboardScreen(
                     .fillMaxWidth()
                     .height(44.dp)
                     .clip(RoundedCornerShape(20.dp))
-                    .background(palette.surfaceBackground)
-                    .border(1.dp, palette.keycapBorder, RoundedCornerShape(20.dp))
+                    .glassSurface(
+                        sampler = LocalGlassSampler.current,
+                        fillColor = palette.surfaceBackground,
+                        tintAlpha = GlassMath.surfaceTintAlpha(opacity),
+                        radius = 20.dp,
+                        borderColor = palette.keycapBorder,
+                        borderWidth = 1.dp,
+                        rimWidth = GlassMath.EDGE_RIM_WIDTH_HEADER_DP.dp
+                    )
                     .padding(horizontal = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
@@ -658,8 +683,14 @@ private fun WriterBarToggleChip(
             .scale(scale)
             .shadow(elevation = 2.dp, shape = chipShape, clip = false)
             .clip(chipShape)
-            .background(palette.surfaceBackground.copy(alpha = 0.98f))
-            .border(1.1.dp, palette.keyGlyphColor.copy(alpha = 0.55f), chipShape)
+            .glassSurface(
+                sampler = LocalGlassSampler.current,
+                fillColor = palette.surfaceBackground,
+                tintAlpha = GlassMath.surfaceTintAlpha(LocalGlassSampler.current?.opacity ?: 1f),
+                radius = 8.dp,
+                borderColor = palette.keyGlyphColor.copy(alpha = 0.55f),
+                borderWidth = 1.1.dp
+            )
             .clickable(interactionSource = interactionSource, indication = null) { onToggle() },
         contentAlignment = Alignment.Center
     ) {
@@ -799,12 +830,14 @@ private fun WriterToolButton(
                 clip = false
             )
             .clip(shape)
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(topColor, bottomColor)
-                )
+            .glassSurface(
+                sampler = LocalGlassSampler.current,
+                fillColor = if (isPressed) lerp(palette.modifierKeycapBg, Color.White, 0.12f) else palette.modifierKeycapBg,
+                tintAlpha = GlassMath.surfaceTintAlpha(LocalGlassSampler.current?.opacity ?: 1f),
+                radius = 8.dp,
+                borderColor = palette.keycapBorder.copy(alpha = 0.35f),
+                
             )
-            .border(0.6.dp, palette.keycapBorder.copy(alpha = 0.35f), shape)
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,
@@ -1377,12 +1410,14 @@ private fun KeycapTile(
                 clip = false
             )
             .clip(shape)
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(topColor, bottomColor)
-                )
+            .glassSurface(
+                sampler = LocalGlassSampler.current,
+                fillColor = if (isPressed) lerp(palette.letterKeycapBg, Color.White, 0.12f) else palette.letterKeycapBg,
+                tintAlpha = GlassMath.surfaceTintAlpha(LocalGlassSampler.current?.opacity ?: 1f),
+                radius = 9.dp,
+                borderColor = palette.keycapBorder.copy(alpha = 0.35f),
+                
             )
-            .border(0.6.dp, palette.keycapBorder.copy(alpha = 0.35f), shape)
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,
@@ -1434,12 +1469,14 @@ private fun KeycapTextTile(
                 clip = false
             )
             .clip(shape)
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(topColor, bottomColor)
-                )
+            .glassSurface(
+                sampler = LocalGlassSampler.current,
+                fillColor = if (isPressed) lerp(baseBg, Color.White, 0.12f) else baseBg,
+                tintAlpha = GlassMath.surfaceTintAlpha(LocalGlassSampler.current?.opacity ?: 1f),
+                radius = 9.dp,
+                borderColor = palette.keycapBorder.copy(alpha = 0.35f),
+                capsule = isCapsule,
             )
-            .border(0.6.dp, palette.keycapBorder.copy(alpha = 0.35f), shape)
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,
@@ -1500,15 +1537,13 @@ private fun KeycapIconTile(
                 clip = false
             )
             .clip(shape)
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(topColor, bottomColor)
-                )
-            )
-            .border(
-                0.6.dp,
-                if (isAccent) palette.accentColor.copy(alpha = 0.6f) else palette.keycapBorder.copy(alpha = 0.35f),
-                shape
+            .glassSurface(
+                sampler = LocalGlassSampler.current,
+                fillColor = if (isPressed) lerp(baseBg, Color.White, 0.12f) else baseBg,
+                tintAlpha = if (isAccent) (LocalGlassSampler.current?.accentTintAlpha() ?: 1f) else GlassMath.surfaceTintAlpha(LocalGlassSampler.current?.opacity ?: 1f),
+                radius = 9.dp,
+                borderColor = if (isAccent) palette.accentColor.copy(alpha = 0.6f) else palette.keycapBorder.copy(alpha = 0.35f),
+                capsule = isCapsule,
             )
             .pointerInput(Unit) {
                 detectTapGestures(

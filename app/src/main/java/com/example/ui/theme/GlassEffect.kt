@@ -2,26 +2,39 @@ package com.example.ui.theme
 
 import android.graphics.Bitmap
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.graphics.ImageShader
-import androidx.compose.ui.graphics.ShaderBrush
-import androidx.compose.ui.graphics.TileMode
+import androidx.compose.ui.graphics.Outline
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.addOutline
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.drawscope.ContentDrawScope
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.Fill
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.GlobalPositionAwareModifierNode
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.positionInWindow
+import androidx.compose.ui.node.DrawModifierNode
+import androidx.compose.ui.node.ModifierNodeElement
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -30,14 +43,13 @@ import kotlin.math.max
 import kotlin.math.roundToInt
 
 // =============================================================================
-//  محرّك الخلفية الزجاجية (Frosted Glass Backdrop)
+//  محرّك الزجاج (Frosted Glass)
 //
-//  الفكرة: الصورة التي تختارها الكاتبة تُعالَج مرّة واحدة على شبكة بكسل الشاشة
-//  نفسها — قصّ إلى نسب الشاشة، ثم تنزيل بجودة عالية (متوسّط الكتل لا يُنزل
-//  عيّنة واحدة)، ثم تمويه حقيقي متعدد المرّات (Stack Blur)، ثم إشباع لوني
-//  (Vibrancy) — فتبدو زجاجاً مصنوعاً بإتقان لا صورةً مغبّشة.
+//  الفكرة: صورة الكاتبة تُعرض *واضحة* كخلفية للتطبيق، وكل بطاقة (مفتاح، شريط
+//  علوي، زر) سطح زجاجي يمرّ من خلاله الجزء الذي خلفه فقط: مموّه، مُشبع لونه،
+//  مُعتَّم قليلاً ليبقى الحرف مقروءاً — وعلى حافته تماماً حدّ ضوئي رفيع.
 //
-//  كل الحسابات الرقمية هنا دوال نقية (بدون أندرويد) ولذلك مُختبَرة في الوحدة.
+//  كل الحسابات الرقمية دوال نقية (بلا أندرويد) ولذلك مُختبَرة في الوحدة.
 // =============================================================================
 
 /** صورة في الذاكرة كأرقام ARGB — الشكل النقي الذي تعمل عليه كل الحسابات. */
@@ -62,12 +74,56 @@ internal object GlassMath {
     /** الإشباع اللوني الافتراضي: يعيد الحيوية التي يسرقها التمويه. */
     const val DEFAULT_VIBRANCY = 1.35f
 
-    /** قوة طبقة النويز الرقيقة جداً التي تقتل تعرّجات التدرّج (Banding). */
-    const val NOISE_LAYER_ALPHA = 0.10f
+    /** درجة تغطية البطاقة الافتراضية: الصورة تظهر من خلفها بنسبة 64%. */
+    const val DEFAULT_TINT_ALPHA = 0.36f
+
+    /**
+     * تعتيم ما يمرّ عبر الزجاج: صورة ساطعة جداً تجعل الحروف البيضاء باهتة،
+     * فهذه الدرجة تحفظ وضوح الحروف في كل الحالات.
+     */
+    const val BACKDROP_BRIGHTNESS = 0.85f
+
+    /** فوق هذه الإضاءة نضغط الإضاءة بلطف (منحنى ناعم لا قطعاً حاداً). */
+    const val HIGHLIGHT_KNEE = 150f
+
+    /** مقدار ضغط الإضاءة فوق الحدّ. */
+    const val HIGHLIGHT_COMPRESSION = 0.55f
+
+    // ------------------------------------------------------------------ الحدّ الضوئي
+    // الحدّ الرفيع يقع *على الحافة نفسها*: لا يخرج خارج البطاقة ولا يزحف داخلها.
+    // هو خطّ واحد رفيع، أعلاه أسطع قليلاً لأنه هو ما يلتقط الضوء في الزجاج الحقيقي.
+
+    /** عرض الحدّ على البطاقات: ٠٫٦ نقطة — رفيع جداً وواضح. */
+    const val EDGE_RIM_WIDTH_DP = 0.6f
+
+    /** عرض الحدّ على الشريط العلوي: ٠٫٧ نقطة. */
+    const val EDGE_RIM_WIDTH_HEADER_DP = 0.7f
+
+    /** سطوع الحدّ على الجانبين. */
+    const val EDGE_RIM_ALPHA_SIDE = 0.26f
+
+    /** سطوع الحدّ في الأعلى (لمعة الضوء). */
+    const val EDGE_RIM_ALPHA_TOP = 0.55f
+
+    /** سطوع الحدّ في الأسفل (همسة انعكاس خفيفة). */
+    const val EDGE_RIM_ALPHA_BOTTOM = 0.12f
+
+    /** طول الجزء العلوي الساطع من الارتفاع. */
+    const val EDGE_RIM_TOP_SPAN = 0.16f
+
+    /** طول الهمسة السفلية من الارتفاع. */
+    const val EDGE_RIM_BOTTOM_SPAN = 0.14f
+
+    /** كم تمتدّ خلفية الصورة تحت حواف الشاشة (لتنطبق مع ما تراه العين). */
+    const val OUTER_EDGE_INSET = 0.12f
+
+    /** تغطية البطاقات البيضاء (زر الإدخال): تبقى بارزة لكنها زجاجية أيضاً. */
+    const val ACCENT_TINT_BASE = 0.35f
+    const val ACCENT_TINT_SLOPE = 0.30f
 
     /**
      * القصّ المركزي إلى نسبة الشاشة (مثل ContentScale.Crop تماماً):
-     * الصورة الأعرض من الهدف تُقصّ من الجانبين، والأطول تُقصّ من أعلى وأسفل.
+     * الأعرض من الهدف يُقصّ من الجانبين، والأطول يُقصّ من أعلى وأسفل.
      */
     fun centerCrop(sourceWidth: Int, sourceHeight: Int, targetAspect: Float): CropRect {
         if (sourceWidth <= 0 || sourceHeight <= 0) return CropRect(0, 0, 0, 0)
@@ -84,7 +140,23 @@ internal object GlassMath {
         }
     }
 
-    /** عامل التنزيل الصحيح الذي يجعل العرض قريباً من عرض الشاشة دون تجاوزه كثيراً. */
+    /**
+     * القصّ الذي يترك هامشاً بسيطاً على كل جهة: يجعل ما خلف البطاقة مطابقاً
+     * لما تراه العين على حافة الشاشة، فلا تنزاح الصورة عن مكانها.
+     */
+    fun insetCrop(sourceWidth: Int, sourceHeight: Int, fraction: Float): CropRect {
+        if (sourceWidth <= 0 || sourceHeight <= 0) return CropRect(0, 0, 0, 0)
+        val inset = fraction.coerceIn(0f, 0.45f)
+        val dx = (sourceWidth * inset).roundToInt()
+        val dy = (sourceHeight * inset).roundToInt()
+        val left = dx.coerceIn(0, sourceWidth - 1)
+        val top = dy.coerceIn(0, sourceHeight - 1)
+        val right = (sourceWidth - dx).coerceIn(left + 1, sourceWidth)
+        val bottom = (sourceHeight - dy).coerceIn(top + 1, sourceHeight)
+        return CropRect(left, top, right, bottom)
+    }
+
+    /** عامل التنزيل الصحيح الذي يجعل العرض قريباً من الهدف دون تجاوزه كثيراً. */
     fun downsampleFactor(sourceWidth: Int, targetWidth: Int): Int {
         if (sourceWidth <= 0 || targetWidth <= 0) return 1
         return max(1, sourceWidth / targetWidth)
@@ -92,7 +164,7 @@ internal object GlassMath {
 
     /**
      * تنزيل بجودة عالية: كل بكسل ناتج = متوسّط كتلة كاملة من الصورة الأصلية،
-     * فلا تُفقد أي تفصيلة ولا تظهر حوافّ مسنّنة (Aliasing).
+     * فلا تُفقد تفصيلة ولا تظهر حوافّ مسنّنة (Aliasing).
      */
     fun boxDownsample(image: PixelImage, factor: Int): PixelImage {
         if (factor <= 1 || image.width <= 0 || image.height <= 0) return image
@@ -123,8 +195,7 @@ internal object GlassMath {
 
     /**
      * تمويه حقيقي (ثلاث مرّات Box Blur ≈ منحنى غاوسي ناعم) بعرض ثابت على كل
-     * الصورة مهما كبر حجمها — نصف القطر يُقصّ عند الحدود بشكل Clamp فلا تُظلم
-     * الحواف. يُنفَّذ في مكانه (in place) توفيراً للذاكرة.
+     * الصورة مهما كبر حجمها — نصف القطر يُقصّ عند الحدود بشكل Clamp.
      */
     fun stackBlur(image: PixelImage, radius: Int) {
         if (radius <= 0 || image.width <= 0 || image.height <= 0) return
@@ -159,32 +230,78 @@ internal object GlassMath {
         }
     }
 
+    /** تعتيم الإضاءة: يمنع الصور الساطعة من إبهات الحروف. */
+    fun dim(image: PixelImage) {
+        val pixels = image.pixels
+        for (i in pixels.indices) {
+            val p = pixels[i]
+            val r = transmittedChannel((p ushr 16) and 0xFF)
+            val g = transmittedChannel((p ushr 8) and 0xFF)
+            val b = transmittedChannel(p and 0xFF)
+            pixels[i] = OPAQUE or (r shl 16) or (g shl 8) or b
+        }
+    }
+
     /**
-     * مقياس رسم الطبقة الزجاجية: صورة مموّهة لا تحتاج دقّة الشاشة كاملة، فنصف
-     * المقاس = ربع الذاكرة وأربع مرّات سرعة بالشكل نفسه تماماً. وعند تمويه ضعيف
-     * جداً (0-3) نُبقي الدقّة كاملة حتى لا تفقد الصورة حدّتها.
+     * مقياس رسم الطبقة: صورة مموّهة لا تحتاج دقّة الشاشة كاملة، فنصف المقاس
+     * = ربع الذاكرة وأربع مرّات سرعة بالشكل نفسه. وعند تمويه ضعيف جداً (0-3)
+     * نُبقي الدقّة كاملة حتى لا تفقد الصورة حدّتها.
      */
     fun renderScale(blurRadiusPx: Int): Float = if (blurRadiusPx <= 3) 1f else 0.5f
 
     /** قياس بعد المقياس، ولا يصغر أبداً عن بكسل واحد. */
-    fun scaledSize(targetPx: Int, scale: Float): Int =
-        max(1, (targetPx * scale).roundToInt())
+    fun scaledSize(targetPx: Int, scale: Float): Int = max(1, (targetPx * scale).roundToInt())
 
-    /** الحجم المعروض للتمويه: إعداد واحد يبدو بالقدر نفسه على كل الأجهزة. */
+    /** الحجم المعروض للتمويه. */
     fun blurRadiusPx(setting: Int): Int = setting.coerceIn(0, MAX_BLUR_PX)
 
     /**
-     * ألفا غطاء السطح: الشفافية 45% تعني أن الصورة تظهر بنسبة 55%.
-     * الحدّ الأدنى 5% يضمن ألّا يختفي الكيبورد تماماً، والأقصى غطاء كامل.
+     * درجة تغطية البطاقة: 36% تعني أن 36% من سطحها لون الثيم، و64% صورة
+     * مموّهة تظهر من خلفها. الحدّ الأدنى 5% والأقصى تغطية كاملة.
      */
-    fun surfaceCoverAlpha(opacity: Float): Float = opacity.coerceIn(0.05f, 1f)
+    fun surfaceTintAlpha(opacity: Float): Float = opacity.coerceIn(0.05f, 1f)
 
-    /** ألفا التعتيم المكمّل — هو ما يُبقي الكيبورد مقروءاً فوق أي صورة. */
-    fun tintAlpha(opacity: Float): Float = 1f - surfaceCoverAlpha(opacity)
+    /** نسبة الصورة التي تظهر من خلف البطاقة = مكمّل درجة التغطية. */
+    fun photoVisibility(opacity: Float): Float = 1f - surfaceTintAlpha(opacity)
+
+    /** تغطية البطاقة البيضاء (زر الإدخال): تبقى بارزة وهي زجاجية. */
+    fun accentTintAlpha(opacity: Float): Float =
+        (ACCENT_TINT_BASE + ACCENT_TINT_SLOPE * surfaceTintAlpha(opacity)).coerceIn(0.05f, 0.9f)
+
+    /** الإضاءة كما تصل عبر الزجاج بعد التعتيم وضغط الإضاءة العالية. */
+    fun transmittedChannel(value: Int): Int {
+        val graded = value * BACKDROP_BRIGHTNESS
+        val compressed = if (graded <= HIGHLIGHT_KNEE) {
+            graded
+        } else {
+            HIGHLIGHT_KNEE + (graded - HIGHLIGHT_KNEE) * HIGHLIGHT_COMPRESSION
+        }
+        return compressed.roundToInt().coerceIn(0, 255)
+    }
 
     /**
-     * أقلّ تنزيل (بقوى الرقم 2) يُبقي أطول ضلع مساوياً للدقّة المطلوبة أو أكبر،
-     * فلا نحمّل صورة أضخم من الحاجة ولا نخسر تفاصيل نحتاجها.
+     * سطوع الحدّ الضوئي بحسب الموضع الرأسي (0 = أعلى البطاقة، 1 = أسفلها):
+     * يبدأ ساطعاً في الأعلى (لمعة الضوء)، يهدأ على الجانبين، ثم همسة خفيفة أسفل.
+     */
+    fun edgeRimAlpha(fractionOfHeight: Float): Float {
+        val t = fractionOfHeight.coerceIn(0f, 1f)
+        val top = if (t <= EDGE_RIM_TOP_SPAN) {
+            (EDGE_RIM_ALPHA_TOP - EDGE_RIM_ALPHA_SIDE) * (1f - t / EDGE_RIM_TOP_SPAN)
+        } else {
+            0f
+        }
+        val bottom = if (t >= 1f - EDGE_RIM_BOTTOM_SPAN) {
+            (EDGE_RIM_ALPHA_BOTTOM - EDGE_RIM_ALPHA_SIDE) *
+                ((t - (1f - EDGE_RIM_BOTTOM_SPAN)) / EDGE_RIM_BOTTOM_SPAN)
+        } else {
+            0f
+        }
+        // الجانب هو الأساس، ولمعة الأعلى تُضاف، وهمسة الأسفل *تُنقص* بلطف.
+        return (EDGE_RIM_ALPHA_SIDE + top + bottom).coerceIn(0f, 1f)
+    }
+
+    /**
+     * أقلّ تنزيل (بقوى الرقم 2) يُبقي أطول ضلع مساوياً للدقّة المطلوبة أو أكبر.
      */
     fun sampleSizeFor(width: Int, height: Int, targetLongest: Int): Int {
         if (width <= 0 || height <= 0 || targetLongest <= 0) return 1
@@ -194,10 +311,7 @@ internal object GlassMath {
         return sample
     }
 
-    /**
-     * تحويل اتجاه الكاميرا (EXIF: 1..8) إلى تدوير + انعكاس، حتى لا تظهر الصورة
-     * مقلوبة أو نائمة على جانبها.
-     */
+    /** تحويل اتجاه الكاميرا (EXIF: 1..8) إلى تدوير + انعكاس. */
     fun exifTransform(orientation: Int): ExifTransform = when (orientation) {
         2 -> ExifTransform(0, true)
         3 -> ExifTransform(180, false)
@@ -207,20 +321,6 @@ internal object GlassMath {
         7 -> ExifTransform(270, true)
         8 -> ExifTransform(270, false)
         else -> ExifTransform(0, false)
-    }
-
-    /** نويز ثابت (نفس البذرة = نفس النتيجة) لكسر تعرّجات التدرّج. */
-    fun noisePixels(size: Int, seed: Int = 20261003): IntArray {
-        var state = seed or 1
-        val pixels = IntArray(size * size)
-        for (i in pixels.indices) {
-            state = state xor (state shl 13)
-            state = state xor (state ushr 17)
-            state = state xor (state shl 5)
-            val speck = (state ushr 24) and 0x20
-            pixels[i] = (speck shl 24) or 0x00FFFFFF
-        }
-        return pixels
     }
 
     private const val OPAQUE = 0xFF shl 24
@@ -247,7 +347,7 @@ private fun boxBlurHorizontal(
             sumB += p and 0xFF
         }
         for (x in 0 until width) {
-            // القسمة مُقرَّبة: الاقتطاع يجعل كل دورة تُظلم الصورة قليلاً وتأكل التفاصيل.
+            // القسمة مُقرَّبة: الاقتطاع يجعل كل دورة تُظلم الصورة وتأكل التفاصيل.
             target[row + x] = (0xFF shl 24) or
                 (((sumR + half) / divisor) shl 16) or
                 (((sumG + half) / divisor) shl 8) or ((sumB + half) / divisor)
@@ -293,8 +393,8 @@ private fun boxBlurVertical(
 // ---------------------------------------------------------------- خط أنابيب العرض
 
 /**
- * يحوّل الصورة المختارة إلى طبقة زجاجية جاهزة للرسم على شبكة بكسل الشاشة:
- * قصّ إلى نسب الشاشة ⇒ تنزيل بجودة عالية ⇒ تمويه ناعم ⇒ إشباع لوني.
+ * يبني «ما وراء الزجاج»: صورة الكاتبة مقصوصة ومموّهة ومُشبَعة ومُعتَّمة،
+ * بحجم يقارب الهدف — فيُبنى مرة واحدة وتُقرأ منه كل بطاقة بلا أي حساب وقت الرسم.
  */
 internal fun renderGlassBitmap(
     source: Bitmap,
@@ -307,16 +407,25 @@ internal fun renderGlassBitmap(
         return null
     }
 
-    // صورة مموّهة لا تحتاج بكسل الشاشة كاملاً: نصف المقاس يعطي الشكل نفسه
-    // بربع الذاكرة وبأربع مرّات سرعة. وعند تمويه ضعيف (0-3) نُبقي الدقّة كاملة
-    // حتى تظهر الصورة حادّة تماماً.
     val renderScale = GlassMath.renderScale(blurRadiusPx)
     val renderWidth = GlassMath.scaledSize(targetWidthPx, renderScale)
     val renderHeight = GlassMath.scaledSize(targetHeightPx, renderScale)
     val renderRadius = max(0, (blurRadiusPx * renderScale).roundToInt())
 
-    val aspect = renderWidth.toFloat() / renderHeight.toFloat()
-    val crop = GlassMath.centerCrop(source.width, source.height, aspect)
+    // القصّ يترك هامشاً بسيطاً على كل جهة: فما خلف البطاقة يطابق ما تراه العين
+    // على الحافة، ولا تنزاح الصورة عن مكانها.
+    val cropped = GlassMath.insetCrop(source.width, source.height, GlassMath.OUTER_EDGE_INSET)
+    val fitted = GlassMath.centerCrop(
+        cropped.width,
+        cropped.height,
+        renderWidth.toFloat() / renderHeight.toFloat()
+    )
+    val crop = CropRect(
+        cropped.left + fitted.left,
+        cropped.top + fitted.top,
+        cropped.left + fitted.right,
+        cropped.top + fitted.bottom
+    )
     if (crop.width <= 0 || crop.height <= 0) return null
 
     val pixels = IntArray(crop.width * crop.height)
@@ -344,13 +453,14 @@ internal fun renderGlassBitmap(
     exact.recycle()
     GlassMath.stackBlur(working, GlassMath.blurRadiusPx(renderRadius))
     GlassMath.saturate(working, saturation)
+    GlassMath.dim(working)
 
     val output = Bitmap.createBitmap(renderWidth, renderHeight, Bitmap.Config.ARGB_8888)
     output.setPixels(working.pixels, 0, renderWidth, 0, 0, renderWidth, renderHeight)
     return output
 }
 
-/** يفكّ ترميز الصورة المحفوظة مرة واحدة لكل تغيير. */
+/** يفكّ ترميز الصورة المحفوظة. */
 internal fun decodeBase64Bitmap(base64: String): Bitmap? {
     if (base64.isEmpty()) return null
     return try {
@@ -361,15 +471,14 @@ internal fun decodeBase64Bitmap(base64: String): Bitmap? {
     }
 }
 
-/** ذاكرة صغيرة لبصمة واحدة: الشاشة والمعاينة تطلبان النتيجة ذاتها فلا تُحسَب مرّتين. */
+/** ذاكرة لبصمة واحدة: الشاشة والمعاينة تطلبان النتيجة ذاتها فلا تُحسَب مرّتين. */
 private object GlassCache {
     private var key: String? = null
     private var bitmap: Bitmap? = null
 
     @Synchronized
     fun get(sourceKey: String, width: Int, height: Int, blur: Int, saturation: Float): Bitmap? {
-        val wanted = "$sourceKey|$width|$height|$blur|$saturation"
-        return if (key == wanted) bitmap else null
+        return if (key == "$sourceKey|$width|$height|$blur|$saturation") bitmap else null
     }
 
     @Synchronized
@@ -388,100 +497,304 @@ private object GlassCache {
 }
 
 /**
- * الطبقة الزجاجية الكاملة للخلفية: الصورة المُعالجة + غطاء الثيم بدرجة
- * الشفافية المختارة + تدرّج خفيف يعطي العمق + نويز رقيق يمنع التعرّجات.
- *
- * تُستخدم في شاشة الكيبورد وفي المعاينة الحيّة بالإعدادات — نفس الطبقة تماماً،
- * فيكون ما تراه الكاتبة في المعاينة هو ما ستراه على الكيبورد فعلاً.
+ * يبني صورة «ما وراء الزجاج» ويُحدّثها عند تغيّر الصورة أو الحجم أو التمويه،
+ * مع تهدئة قصيرة حتى لا تتلاحق الحسابات أثناء سحب شريط الغبش.
  */
 @Composable
-internal fun GlassBackdrop(
+internal fun rememberGlassImage(
     sourceBitmap: Bitmap?,
     sourceKey: String,
-    opacity: Float,
+    targetWidthPx: Int,
+    targetHeightPx: Int,
     blurRadiusPx: Int,
-    tintColor: Color,
-    modifier: Modifier = Modifier,
     saturation: Float = GlassMath.DEFAULT_VIBRANCY
-) {
-    val configuration = LocalConfiguration.current
-    val density = LocalDensity.current
-    val targetWidthPx = remember(configuration.screenWidthDp, density.density) {
-        with(density) { configuration.screenWidthDp.dp.roundToPx() }
-    }
-    val targetHeightPx = remember(configuration.screenHeightDp, density.density) {
-        with(density) { configuration.screenHeightDp.dp.roundToPx() }
-    }
-
-    // نُبقي آخر طبقة معروضة أثناء إعادة الحساب: تحريك شريط التمويه
-    // يُبدّل الصورة بهدوء بدل أن تُفرغ الشاشة لحظة ثم تعود.
-    val glassState = remember { mutableStateOf<ImageBitmap?>(null) }
+): ImageBitmap? {
+    val state = remember { mutableStateOf<ImageBitmap?>(null) }
     LaunchedEffect(sourceKey, sourceBitmap, targetWidthPx, targetHeightPx, blurRadiusPx, saturation) {
         val bitmap = sourceBitmap ?: return@LaunchedEffect
-
         val cached = GlassCache.get(sourceKey, targetWidthPx, targetHeightPx, blurRadiusPx, saturation)
         if (cached != null) {
-            glassState.value = cached.asImageBitmap()
+            state.value = cached.asImageBitmap()
             return@LaunchedEffect
         }
-
-        // تهدئة قصيرة: أثناء سحب الشريط تُلغى الحسابات المتلاحقة قبل أن تبدأ
         delay(70)
         val rendered = withContext(Dispatchers.Default) {
             renderGlassBitmap(bitmap, targetWidthPx, targetHeightPx, blurRadiusPx, saturation)
         }
         if (rendered != null) {
             GlassCache.put(sourceKey, targetWidthPx, targetHeightPx, blurRadiusPx, saturation, rendered)
-            glassState.value = rendered.asImageBitmap()
+            state.value = rendered.asImageBitmap()
         }
     }
-    val glass = glassState.value
+    return state.value
+}
 
-    Box(modifier = modifier) {
-        glass?.let { image ->
-            Image(
-                bitmap = image,
-                contentDescription = null,
-                contentScale = ContentScale.FillBounds,
-                filterQuality = FilterQuality.Medium,
-                modifier = Modifier.fillMaxSize()
-            )
+// ---------------------------------------------------------------- توزيع الزجاج
+
+/**
+ * مصدر الزجاج: صورة «ما وراء الزجاج» + معامل التحويل من بكسل العنصر إلى بكسل
+ * الصورة + موضع أصل المنطقة. كل بطاقة تقرأ منه منطقتها فقط.
+ */
+internal class GlassSampler(
+    val image: ImageBitmap,
+    val pxPerNodePx: Float,
+    val originInWindow: Offset = Offset.Zero,
+    /** قيمة شريط الشفافية: منها تُشتقّ تغطية كل بطاقة. */
+    val opacity: Float = GlassMath.DEFAULT_TINT_ALPHA
+) {
+    /** تغطية البطاقات العادية. */
+    fun tintAlpha(): Float = GlassMath.surfaceTintAlpha(opacity)
+
+    /** تغطية البطاقات البيضاء (زر الإدخال والمفتاح المختار). */
+    fun accentTintAlpha(): Float = GlassMath.accentTintAlpha(opacity)
+}
+
+internal val LocalGlassSampler = compositionLocalOf<GlassSampler?> { null }
+
+/** الصورة الواضحة (غير المموّهة) كخلفية للتطبيق. */
+@Composable
+internal fun GlassWallpaper(
+    bitmap: Bitmap?,
+    modifier: Modifier = Modifier
+) {
+    if (bitmap == null) return
+    val image = remember(bitmap) { bitmap.asImageBitmap() }
+    Image(
+        bitmap = image,
+        contentDescription = null,
+        contentScale = ContentScale.Crop,
+        modifier = modifier
+    )
+}
+
+/** يحسب مقاس الشاشة بالبكسل لعرض الزجاج. */
+@Composable
+internal fun rememberScreenSizePx(): Pair<Int, Int> {
+    val configuration = LocalConfiguration.current
+    val density = LocalDensity.current
+    val width = remember(configuration.screenWidthDp, density.density) {
+        with(density) { configuration.screenWidthDp.dp.roundToPx() }
+    }
+    val height = remember(configuration.screenHeightDp, density.density) {
+        with(density) { configuration.screenHeightDp.dp.roundToPx() }
+    }
+    return width to height
+}
+
+// ---------------------------------------------------------------- سطح الزجاج
+
+private class GlassSurfaceNode(
+    var sampler: GlassSampler?,
+    var fillColor: Color,
+    var tintAlpha: Float,
+    var borderColor: Color,
+    var borderWidth: Dp,
+    var rimWidth: Dp,
+    var radius: Dp,
+    var capsule: Boolean
+) : Modifier.Node(), DrawModifierNode, GlobalPositionAwareModifierNode {
+
+    var positionInWindow: Offset = Offset.Zero
+
+    override fun onGloballyPositioned(coordinates: LayoutCoordinates) {
+        positionInWindow = coordinates.positionInWindow()
+    }
+
+    override fun ContentDrawScope.draw() {
+        val active = sampler
+        val radiusPx = if (capsule) size.height / 2f else radius.toPx()
+        val shapeOutline = Outline.Rounded(
+            RoundRect(0f, 0f, size.width, size.height, CornerRadius(radiusPx))
+        )
+        val shapePath = Path().apply { addOutline(shapeOutline) }
+
+        clipPath(shapePath) {
+            if (active != null) {
+                // ١) ما خلف البطاقة: الجزء المقابل من الصورة المموّهة.
+                val scale = active.pxPerNodePx
+                val imageWidth = active.image.width
+                val imageHeight = active.image.height
+                val srcX = ((positionInWindow.x - active.originInWindow.x) * scale)
+                    .roundToInt().coerceIn(0, max(0, imageWidth - 1))
+                val srcY = ((positionInWindow.y - active.originInWindow.y) * scale)
+                    .roundToInt().coerceIn(0, max(0, imageHeight - 1))
+                val srcW = (size.width * scale).roundToInt().coerceIn(1, imageWidth)
+                val srcH = (size.height * scale).roundToInt().coerceIn(1, imageHeight)
+                drawImage(
+                    image = active.image,
+                    srcOffset = IntOffset(srcX, srcY),
+                    srcSize = IntSize(srcW, srcH),
+                    dstOffset = IntOffset.Zero,
+                    dstSize = IntSize(
+                        size.width.roundToInt().coerceAtLeast(1),
+                        size.height.roundToInt().coerceAtLeast(1)
+                    ),
+                    alpha = 1f,
+                    style = Fill,
+                    filterQuality = FilterQuality.Low
+                )
+                // ٢) طبقة الثيم: هي «جسم الزجاج» الذي يبقيه مقروءاً.
+                drawRect(color = fillColor.copy(alpha = tintAlpha))
+            } else {
+                // بلا صورة: الشكل القديم نفسه بالحرف (لا يتغيّر شيء عمّا اعتادت عليه).
+                drawRect(color = fillColor)
+            }
         }
 
-        // غطاء الثيم: هو "زجاج" اللوحة — كل ما قلّت الشفافية زاد ظهور الصورة.
-        val tint = GlassMath.tintAlpha(opacity)
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            tintColor.copy(alpha = tint * 0.82f),
-                            tintColor.copy(alpha = tint)
-                        )
+        // ٣) الحافة: حدّ الثيم أولاً (يحفظ الوضوح على الخلفيات الفاتحة والغامقة)،
+        //    ثم يلمع فوقه الحدّ الضوئي — شعرة واحدة *على* الحافة نفسها.
+        if (active == null) {
+            val width = borderWidth.toPx()
+            if (width > 0f) {
+                drawPath(
+                    path = edgePath(width),
+                    color = borderColor,
+                    style = Stroke(width = width)
+                )
+            }
+        } else {
+            // أ) حدّ الثيم: بلا قصّ حادّ، فهو الأصل الذي اعتادت عليه العين.
+            val themeWidth = borderWidth.toPx()
+            if (themeWidth > 0f) {
+                clipPath(shapePath) {
+                    drawPath(
+                        path = edgePath(themeWidth),
+                        color = borderColor,
+                        style = Stroke(width = themeWidth)
+                    )
+                }
+            }
+            // ب) اللمعة: أعلى ساطع ← الجانبين هادئ ← همسة أسفل.
+            val rimW = rimWidth.toPx()
+            if (rimW > 0f) {
+                val brush = Brush.verticalGradient(
+                    colorStops = rimColorStops(),
+                    startY = 0f,
+                    endY = size.height
+                )
+                // القصّ يضمن أن لا يظهر أي جزء من الحدّ خارج البطاقة أبداً.
+                clipPath(shapePath) {
+                    drawPath(path = edgePath(rimW), brush = brush, style = Stroke(width = rimW))
+                }
+            }
+        }
+
+        drawContent()
+    }
+
+    /** مسار الحافة مُزاحاً للداخل بنصف سماكة القلم، فلا يتجاوز حدود البطاقة. */
+    private fun ContentDrawScope.edgePath(strokeWidth: Float): Path {
+        val inset = strokeWidth / 2f
+        val cornerRadius = if (capsule) {
+            ((size.height - strokeWidth) / 2f).coerceAtLeast(0f)
+        } else {
+            (radius.toPx() - inset).coerceAtLeast(0f)
+        }
+        return Path().apply {
+            addOutline(
+                Outline.Rounded(
+                    RoundRect(
+                        inset, inset, size.width - inset, size.height - inset,
+                        CornerRadius(cornerRadius)
                     )
                 )
-        )
-
-        // نويز بنسخ متكرّر 1:1 — الحبيبات كما هي بلا تكبير، فيتكسّر التدرّج
-        // ولا تظهر خطوط "السلالم" التي تشوّه التمويه الكبير.
-        val noiseImage: ImageBitmap = remember {
-            val side = 48
-            val bitmap = Bitmap.createBitmap(side, side, Bitmap.Config.ARGB_8888)
-            bitmap.setPixels(GlassMath.noisePixels(side), 0, side, 0, 0, side, side)
-            bitmap.asImageBitmap()
+            )
         }
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .drawWithCache {
-                    val brush = ShaderBrush(
-                        ImageShader(noiseImage, TileMode.Repeated, TileMode.Repeated)
-                    )
-                    onDrawBehind {
-                        drawRect(brush = brush, alpha = GlassMath.NOISE_LAYER_ALPHA)
-                    }
-                }
-        )
     }
 }
+
+/** نقاط تدرّج اللمعة على ارتفاع البطاقة: ناعم جداً بلا أي قطع. */
+private fun rimColorStops(): Array<Pair<Float, Color>> {
+    val steps = 12
+    val stops = ArrayList<Pair<Float, Color>>(steps + 1)
+    for (i in 0..steps) {
+        val t = i.toFloat() / steps
+        stops.add(t to Color.White.copy(alpha = GlassMath.edgeRimAlpha(t)))
+    }
+    return stops.toTypedArray()
+}
+
+private class GlassSurfaceElement(
+    val sampler: GlassSampler?,
+    val fillColor: Color,
+    val tintAlpha: Float,
+    val borderColor: Color,
+    val borderWidth: Dp,
+    val rimWidth: Dp,
+    val radius: Dp,
+    val capsule: Boolean
+) : ModifierNodeElement<GlassSurfaceNode>() {
+
+    override fun create(): GlassSurfaceNode = GlassSurfaceNode(
+        sampler = sampler,
+        fillColor = fillColor,
+        tintAlpha = tintAlpha,
+        borderColor = borderColor,
+        borderWidth = borderWidth,
+        rimWidth = rimWidth,
+        radius = radius,
+        capsule = capsule
+    )
+
+    override fun update(node: GlassSurfaceNode) {
+        node.sampler = sampler
+        node.fillColor = fillColor
+        node.tintAlpha = tintAlpha
+        node.borderColor = borderColor
+        node.borderWidth = borderWidth
+        node.rimWidth = rimWidth
+        node.radius = radius
+        node.capsule = capsule
+    }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is GlassSurfaceElement) return false
+        return sampler === other.sampler &&
+            fillColor == other.fillColor &&
+            tintAlpha == other.tintAlpha &&
+            borderColor == other.borderColor &&
+            borderWidth == other.borderWidth &&
+            rimWidth == other.rimWidth &&
+            radius == other.radius &&
+            capsule == other.capsule
+    }
+
+    override fun hashCode(): Int {
+        var result = sampler?.hashCode() ?: 0
+        result = 31 * result + fillColor.hashCode()
+        result = 31 * result + tintAlpha.hashCode()
+        result = 31 * result + borderColor.hashCode()
+        result = 31 * result + borderWidth.hashCode()
+        result = 31 * result + rimWidth.hashCode()
+        result = 31 * result + radius.hashCode()
+        result = 31 * result + capsule.hashCode()
+        return result
+    }
+}
+
+/**
+ * سطح زجاجي كامل: ما خلفه مموّهاً + طبقة الثيم + حدّ ضوئي رفيع على الحافة.
+ * وفي حال عدم وجود صورة: الشكل القديم نفسه (لون صلب + حدّ الثيم).
+ */
+internal fun Modifier.glassSurface(
+    sampler: GlassSampler?,
+    fillColor: Color,
+    tintAlpha: Float,
+    radius: Dp,
+    borderColor: Color,
+    borderWidth: Dp = 0.6.dp,
+    rimWidth: Dp = GlassMath.EDGE_RIM_WIDTH_DP.dp,
+    capsule: Boolean = false
+): Modifier = this.then(
+    GlassSurfaceElement(
+        sampler = sampler,
+        fillColor = fillColor,
+        tintAlpha = tintAlpha,
+        borderColor = borderColor,
+        borderWidth = borderWidth,
+        rimWidth = rimWidth,
+        radius = radius,
+        capsule = capsule
+    )
+)

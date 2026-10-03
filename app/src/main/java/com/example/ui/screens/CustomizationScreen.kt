@@ -34,9 +34,13 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ui.theme.*
+import kotlin.math.roundToInt
 
 @Composable
 fun CustomizationScreen(
@@ -520,21 +524,49 @@ private fun KeyboardLivePreview(
     val shape = RoundedCornerShape(12.dp)
     val keyShape = RoundedCornerShape(2.dp)
 
+    // نفس محرّك الكيبورد بالحرف، لكن بحجم المعاينة: نفس النسب والتمويه والحدّ الرفيع.
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    val previewWidthPx = remember(density) { with(density) { 104.dp.roundToPx() } }
+    val previewHeightPx = remember(previewWidthPx, aspect) {
+        (previewWidthPx / aspect.coerceAtLeast(0.05f)).roundToInt().coerceAtLeast(1)
+    }
+    val screenSizePx = rememberScreenSizePx()
+    val blurForPreview = remember(blur, previewWidthPx, screenSizePx.first) {
+        if (screenSizePx.first <= 0) 0 else {
+            (blur.toFloat() * previewWidthPx / screenSizePx.first).roundToInt().coerceIn(0, blur)
+        }
+    }
+    val glassImage = rememberGlassImage(
+        sourceBitmap = source,
+        sourceKey = "preview-${bgBase64.length}-${bgBase64.hashCode()}",
+        targetWidthPx = previewWidthPx,
+        targetHeightPx = previewHeightPx,
+        blurRadiusPx = blurForPreview
+    )
+    var previewOrigin by remember { mutableStateOf(Offset.Zero) }
+    val sampler = remember(glassImage, opacity, previewOrigin) {
+        glassImage?.let {
+            GlassSampler(
+                image = it,
+                pxPerNodePx = 1f,
+                originInWindow = previewOrigin,
+                opacity = opacity
+            )
+        }
+    }
+    val previewTint = GlassMath.surfaceTintAlpha(opacity)
+
+    CompositionLocalProvider(LocalGlassSampler provides sampler) {
     Box(
         modifier = modifier
             .width(104.dp)
             .aspectRatio(aspect)
+            .onGloballyPositioned { previewOrigin = it.positionInWindow() }
             .clip(shape)
             .border(1.dp, Color.White.copy(alpha = 0.16f), shape)
     ) {
-        GlassBackdrop(
-            sourceBitmap = source,
-            sourceKey = "preview-${bgBase64.length}-${bgBase64.hashCode()}",
-            opacity = opacity,
-            blurRadiusPx = blur,
-            tintColor = palette.canvasBackground,
-            modifier = Modifier.fillMaxSize()
-        )
+        // الصورة واضحة، والتمويه داخل المفاتيح فقط — كما على الكيبورد تماماً.
+        GlassWallpaper(bitmap = source, modifier = Modifier.fillMaxSize())
 
         Column(
             modifier = Modifier
@@ -545,10 +577,18 @@ private fun KeyboardLivePreview(
             // الشريط العلوي
             Box(
                 modifier = Modifier
-                    .fillMaxWidth()
                     .weight(0.12f)
+                    .fillMaxWidth()
                     .clip(keyShape)
-                    .background(palette.surfaceBackground.copy(alpha = 0.92f))
+                    .glassSurface(
+                        sampler = LocalGlassSampler.current,
+                        fillColor = palette.surfaceBackground,
+                        tintAlpha = previewTint,
+                        radius = 4.dp,
+                        borderColor = palette.keycapBorder,
+                        borderWidth = 0.5.dp,
+                        rimWidth = 0.5.dp
+                    )
             )
 
             // صفوف المفاتيح الثلاثة
@@ -566,9 +606,10 @@ private fun KeyboardLivePreview(
             ) {
                 MiniKey(palette = palette, shape = keyShape, modifier = Modifier.weight(1f))
                 MiniKey(palette = palette, shape = keyShape, modifier = Modifier.weight(4f))
-                MiniKey(palette = palette, shape = keyShape, modifier = Modifier.weight(1f))
+                MiniKey(palette = palette, shape = keyShape, modifier = Modifier.weight(1f), accent = true)
             }
         }
+    }
     }
 }
 
@@ -596,13 +637,26 @@ private fun ColumnScope.MiniKeyRow(
 private fun MiniKey(
     palette: ThemePalette,
     shape: RoundedCornerShape,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    accent: Boolean = false
 ) {
+    val sampler = LocalGlassSampler.current
     Box(
         modifier = modifier
             .fillMaxHeight()
             .clip(shape)
-            .background(palette.letterKeycapBg.copy(alpha = 0.94f))
-            .border(0.6.dp, palette.keycapBorder.copy(alpha = 0.30f), shape)
+            .glassSurface(
+                sampler = sampler,
+                fillColor = if (accent) palette.accentColor else palette.letterKeycapBg,
+                tintAlpha = if (accent) {
+                    sampler?.accentTintAlpha() ?: 1f
+                } else {
+                    GlassMath.surfaceTintAlpha(sampler?.opacity ?: 1f)
+                },
+                radius = 2.dp,
+                borderColor = palette.keycapBorder.copy(alpha = 0.30f),
+                borderWidth = 0.5.dp,
+                rimWidth = 0.5.dp
+            )
     )
 }

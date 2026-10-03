@@ -231,18 +231,99 @@ class GlassEffectTest {
     // ------------------------------------------------------------ slider mapping
 
     @Test
-    fun `the transparency slider decides how much of the photo shows through`() {
-        assertEquals(0.55f, GlassMath.tintAlpha(0.45f), 0.0001f)
-        assertEquals(0.45f, GlassMath.surfaceCoverAlpha(0.45f), 0.0001f)
-        assertEquals("a fully opaque keyboard hides the photo", 1f, GlassMath.surfaceCoverAlpha(1f), 0.0001f)
+    fun `the transparency slider decides how much of the photo shows through the keys`() {
+        assertEquals(0.36f, GlassMath.surfaceTintAlpha(0.36f), 0.0001f)
+        assertEquals("64% of the photo shows at the default", 0.64f, GlassMath.photoVisibility(0.36f), 0.0001f)
+        assertEquals("the default really is 36%", 0.36f, GlassMath.DEFAULT_TINT_ALPHA, 0.0001f)
+        assertEquals("nothing shows through a fully covered key", 0f, GlassMath.photoVisibility(1f), 0.0001f)
+    }
+
+    @Test
+    fun `the white keys stay prominent while still being glass`() {
+        val soft = GlassMath.accentTintAlpha(0.05f)
+        val strong = GlassMath.accentTintAlpha(0.9f)
+        assertTrue("a white key is always more covered than a normal one", soft > 0.05f)
+        assertTrue("more photo means a paler white key too", strong > soft)
+        assertEquals("its palest state", 0.65f, GlassMath.accentTintAlpha(4f), 0.0001f)
+        assertTrue("never fully covered", GlassMath.accentTintAlpha(4f) <= 0.9f)
     }
 
     @Test
     fun `the sliders can never produce a value outside its range`() {
         assertEquals(25, GlassMath.blurRadiusPx(999))
         assertEquals(0, GlassMath.blurRadiusPx(-4))
-        assertEquals(0.05f, GlassMath.surfaceCoverAlpha(0f), 0.0001f)
-        assertEquals(1f, GlassMath.surfaceCoverAlpha(4f), 0.0001f)
+        assertEquals(0.05f, GlassMath.surfaceTintAlpha(0f), 0.0001f)
+        assertEquals(1f, GlassMath.surfaceTintAlpha(4f), 0.0001f)
+    }
+
+    // ------------------------------------------------------------ light through glass
+
+    @Test
+    fun `light passing through the glass is tamed but never lost`() {
+        assertEquals(0, GlassMath.transmittedChannel(0))
+        assertTrue("pure white stays bright", GlassMath.transmittedChannel(255) > 180)
+        assertTrue("but it is tamed", GlassMath.transmittedChannel(255) < 255)
+        assertTrue("a bright area cannot outshine itself", GlassMath.transmittedChannel(255) <= 255)
+
+        var previous = -1
+        for (value in 0..255) {
+            val out = GlassMath.transmittedChannel(value)
+            assertTrue("brighter stays brighter", out >= previous)
+            previous = out
+        }
+    }
+
+    // ------------------------------------------------------------ the rim of light
+
+    @Test
+    fun `the rim glows at the top, calms at the sides and whispers at the bottom`() {
+        val top = GlassMath.edgeRimAlpha(0f)
+        val side = GlassMath.edgeRimAlpha(0.5f)
+        val bottom = GlassMath.edgeRimAlpha(1f)
+
+        assertEquals("the top is the brightest", GlassMath.EDGE_RIM_ALPHA_TOP, top, 0.0001f)
+        assertEquals("the sides are calm", GlassMath.EDGE_RIM_ALPHA_SIDE, side, 0.0001f)
+        assertEquals("the bottom is a whisper", GlassMath.EDGE_RIM_ALPHA_BOTTOM, bottom, 0.0001f)
+        assertTrue("top > sides > bottom", top > side && side > bottom)
+    }
+
+    @Test
+    fun `the rim fades smoothly, with no step anywhere`() {
+        var previous = GlassMath.edgeRimAlpha(0f)
+        for (i in 1..200) {
+            val value = GlassMath.edgeRimAlpha(i / 200f)
+            assertTrue("no sudden jump in the rim", kotlin.math.abs(value - previous) < 0.06f)
+            previous = value
+        }
+        assertEquals("values below 0 are treated as the top", GlassMath.edgeRimAlpha(-3f), GlassMath.edgeRimAlpha(0f), 0.0001f)
+        assertEquals("values above 1 are treated as the bottom", GlassMath.edgeRimAlpha(9f), GlassMath.edgeRimAlpha(1f), 0.0001f)
+    }
+
+    @Test
+    fun `the rim is a thin hairline, never a thick band`() {
+        assertTrue("thinner than a single pixel at common densities", GlassMath.EDGE_RIM_WIDTH_DP <= 0.8f)
+        assertTrue("still visible", GlassMath.EDGE_RIM_WIDTH_DP >= 0.4f)
+        assertTrue(GlassMath.EDGE_RIM_WIDTH_HEADER_DP >= GlassMath.EDGE_RIM_WIDTH_DP)
+    }
+
+    // ------------------------------------------------------------ aligning the backdrop
+
+    @Test
+    fun `the backdrop keeps the safe margin so nothing shifts behind the keys`() {
+        val crop = GlassMath.insetCrop(1000, 2000, 0.12f)
+        assertEquals("a 12% margin on a 1000px photo", 120, crop.left)
+        assertEquals("and on a 2000px photo", 240, crop.top)
+        assertEquals("symmetrical", crop.left, 1000 - crop.right)
+        assertEquals("symmetrical vertically", crop.top, 2000 - crop.bottom)
+        assertTrue("the crop can never be empty", crop.width > 0 && crop.height > 0)
+    }
+
+    @Test
+    fun `an extreme margin still yields a usable photo`() {
+        val crop = GlassMath.insetCrop(10, 10, 5f)
+        assertTrue(crop.width > 0 && crop.height > 0)
+        val broken = GlassMath.insetCrop(0, 0, 0.12f)
+        assertEquals(0, broken.width)
     }
 
     @Test
@@ -284,17 +365,4 @@ class GlassEffectTest {
             ExifTransform(0, false), GlassMath.exifTransform(99))
     }
 
-    // ------------------------------------------------------------ banding noise
-
-    @Test
-    fun `the banding noise is deterministic, white and very light`() {
-        val first = GlassMath.noisePixels(8)
-        val second = GlassMath.noisePixels(8)
-        assertTrue("same seed, same result", first.contentEquals(second))
-        assertNotEquals("it is not a flat image", 0, first.toSet().size)
-        first.forEach { pixel ->
-            assertEquals("white specks only", 0x00FFFFFF, pixel and 0x00FFFFFF)
-            assertTrue("the specks must stay faint", ((pixel ushr 24) and 0xFF) <= 32)
-        }
-    }
 }
