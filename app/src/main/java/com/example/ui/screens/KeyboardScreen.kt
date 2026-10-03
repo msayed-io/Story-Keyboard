@@ -20,6 +20,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -44,10 +45,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -71,6 +78,7 @@ import com.example.ui.theme.ThmanyahSansFontFamily
 import com.example.ui.theme.ThmanyahSerifDisplayFontFamily
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import java.io.File
 import java.io.FileOutputStream
 import java.net.URLEncoder
@@ -81,6 +89,46 @@ import kotlin.math.abs
 import kotlin.math.exp
 import kotlin.math.sin
 import kotlin.random.Random
+
+/** How long a resting finger must wait before it becomes a drag. */
+internal const val DRAG_HOLD_MS = 300L
+
+/** The share of the pad that counts as the bottom-right corner. */
+internal const val RIGHT_CLICK_ZONE_X = 0.74f
+internal const val RIGHT_CLICK_ZONE_Y = 0.70f
+
+/**
+ * What the pad concluded about one finger gesture.
+ *
+ * Kept as a pure function so the rule "a quick tap clicks, travel never clicks,
+ * a resting-then-moving finger drags" is unit-tested and can never drift.
+ */
+internal data class PadGestureOutcome(
+    val releaseButton: Boolean,
+    val clickButton: String?
+)
+
+/** True when a press inside the bottom-right corner must become a right click. */
+internal fun isRightClickCorner(x: Float, y: Float, width: Float, height: Float): Boolean =
+    x >= width * RIGHT_CLICK_ZONE_X && y >= height * RIGHT_CLICK_ZONE_Y
+
+/**
+ * Classifies a finished gesture.
+ *
+ * @param travelled    the finger moved further than the touch slop
+ * @param dragging     the finger rested long enough to grab the tablet's button
+ * @param multiTouch   a second finger joined (scroll), so this is not a pad gesture
+ * @param rightCorner  the press started in the bottom-right corner
+ */
+internal fun classifyPadGesture(
+    travelled: Boolean,
+    dragging: Boolean,
+    multiTouch: Boolean,
+    rightCorner: Boolean
+): PadGestureOutcome {
+    val click = if (!travelled && !multiTouch) (if (rightCorner) "right" else "left") else null
+    return PadGestureOutcome(releaseButton = dragging, clickButton = click)
+}
 
 enum class KeyboardMode {
     ARABIC,
@@ -124,6 +172,15 @@ fun KeyboardScreen(
     var pressedKeyLabel by remember { mutableStateOf<String?>(null) }
     var pasteFeedback by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
+
+    // The writer bar (undo / redo / clipboard / save) is open by default in the
+    // typing modes — Arabic, English and numbers — and folded away in mouse mode,
+    // where the whole surface belongs to the pointer. The small chevron chip under
+    // the bar flips this any time, in any mode.
+    var isToolbarVisible by remember { mutableStateOf(currentMode != KeyboardMode.TRACKPAD) }
+    LaunchedEffect(currentMode) {
+        isToolbarVisible = currentMode != KeyboardMode.TRACKPAD
+    }
 
     // Paste has two possible sources: this phone's clipboard or the tablet's own.
     val clipboardManager = remember {
@@ -406,33 +463,69 @@ fun KeyboardScreen(
             }
 
             // =============================================================
-            // PERMANENT APPLE-GRADE WRITER SHORTCUTS TOOLBAR (Always Visible)
+            // WRITER SHORTCUTS TOOLBAR — unfolded by default while typing and
+            // folded away in mouse mode. It slides in exactly where it always
+            // lived: same place, same size, same buttons.
             // =============================================================
-            WriterToolsRow(
-                palette = palette,
-                onKey = handleKeyTap,
-                onPasteFromPhone = {
-                    val text = phoneClipboardText()
-                    if (text.trim().isEmpty()) {
-                        flashPasteFeedback("محفظة الهاتف فارغة")
-                    } else if (text.length > 400_000) {
-                        flashPasteFeedback("النص أكبر من الحد المسموح")
-                    } else {
-                        flashPasteFeedback("جارٍ الإرسال…")
-                        onSendPasteText(text) { ok ->
-                            flashPasteFeedback(
-                                if (ok) "تم لصق ${text.length} حرفاً ✓" else "تعذّر الإرسال — تأكدي من الاتصال"
-                            )
+            AnimatedVisibility(
+                visible = isToolbarVisible,
+                enter = fadeIn(tween(durationMillis = 220)) + expandVertically(
+                    animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing),
+                    expandFrom = Alignment.Top
+                ),
+                exit = fadeOut(tween(durationMillis = 140)) + shrinkVertically(
+                    animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing),
+                    shrinkTowards = Alignment.Top
+                )
+            ) {
+                Column {
+                    WriterToolsRow(
+                        palette = palette,
+                        onKey = handleKeyTap,
+                        onPasteFromPhone = {
+                            val text = phoneClipboardText()
+                            if (text.trim().isEmpty()) {
+                                flashPasteFeedback("محفظة الهاتف فارغة")
+                            } else if (text.length > 400_000) {
+                                flashPasteFeedback("النص أكبر من الحد المسموح")
+                            } else {
+                                flashPasteFeedback("جارٍ الإرسال…")
+                                onSendPasteText(text) { ok ->
+                                    flashPasteFeedback(
+                                        if (ok) "تم لصق ${text.length} حرفاً ✓" else "تعذّر الإرسال — تأكدي من الاتصال"
+                                    )
+                                }
+                            }
+                        },
+                        onPasteFromTablet = {
+                            handleKeyTap("لصق", "shortcut", "cmd=paste_local")
+                            flashPasteFeedback("جارٍ اللصق من محفظة التابلت…")
                         }
-                    }
-                },
-                onPasteFromTablet = {
-                    handleKeyTap("لصق", "shortcut", "cmd=paste_local")
-                    flashPasteFeedback("جارٍ اللصق من محفظة التابلت…")
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
                 }
-            )
+            }
 
-            Spacer(modifier = Modifier.height(4.dp))
+            // The toggle chip: centred between the bar and the surface below, so it
+            // never covers a single element of the bar. It glides with the fold.
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(22.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                WriterBarToggleChip(
+                    isOpen = isToolbarVisible,
+                    palette = palette,
+                    onToggle = {
+                        isToolbarVisible = !isToolbarVisible
+                        vibratePhone(context, configuredVibration)
+                        KeyboardSoundEffect.playClick(context, "standard")
+                    }
+                )
+            }
+
+            Spacer(modifier = Modifier.height(2.dp))
 
             // =============================================================
             // KEYBOARD CANVAS
@@ -538,6 +631,65 @@ private data class WriterToolItem(
     val action: String,
     val params: String
 )
+
+/**
+ * Writer-bar toggle: the small chevron chip from the design reference.
+ *
+ * Folded away  → chevron pointing DOWN  (tap and the bar glides back in)
+ * Unfolded     → chevron pointing UP    (tap and the bar folds away)
+ * The rotation between the two states is animated, and the chip keeps the same
+ * compact size and the same centred seat in every mode.
+ */
+@Composable
+private fun WriterBarToggleChip(
+    isOpen: Boolean,
+    palette: ThemePalette,
+    onToggle: () -> Unit
+) {
+    val rotation by animateFloatAsState(
+        targetValue = if (isOpen) 180f else 0f,
+        animationSpec = tween(durationMillis = 320, easing = FastOutSlowInEasing),
+        label = "writer_bar_chevron"
+    )
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.90f else 1f,
+        animationSpec = spring(stiffness = 900f, dampingRatio = 0.6f),
+        label = "writer_bar_chip_scale"
+    )
+    val chipShape = RoundedCornerShape(8.dp)
+
+    Box(
+        modifier = Modifier
+            .size(23.dp)
+            .scale(scale)
+            .shadow(elevation = 2.dp, shape = chipShape, clip = false)
+            .clip(chipShape)
+            .background(palette.surfaceBackground.copy(alpha = 0.98f))
+            .border(1.1.dp, palette.keyGlyphColor.copy(alpha = 0.55f), chipShape)
+            .clickable(interactionSource = interactionSource, indication = null) { onToggle() },
+        contentAlignment = Alignment.Center
+    ) {
+        Canvas(
+            modifier = Modifier
+                .size(width = 12.dp, height = 8.dp)
+                .rotate(rotation)
+        ) {
+            val stroke = Stroke(
+                width = 2.05.dp.toPx(),
+                cap = StrokeCap.Round,
+                join = StrokeJoin.Round
+            )
+            val chevron = Path().apply {
+                moveTo(0f, size.height * 0.16f)
+                lineTo(size.width * 0.5f, size.height * 0.84f)
+                lineTo(size.width, size.height * 0.16f)
+            }
+            drawPath(path = chevron, color = palette.keyGlyphColor, style = stroke)
+        }
+    }
+}
 
 @Composable
 private fun WriterToolsRow(
@@ -1001,9 +1153,6 @@ private fun StudioTrackpadLayout(
     val context = LocalContext.current
     // Ultra-responsive 160Hz polling loop using AtomicIntegerArray
     val movementState = remember { java.util.concurrent.atomic.AtomicIntegerArray(2) }
-    // Drag = the tablet keeps the left button held while the finger moves.
-    var isDragging by remember { mutableStateOf(false) }
-
     // Leaving the tab can never leave the tablet with a stuck pressed button.
     DisposableEffect(Unit) {
         onDispose {
@@ -1023,45 +1172,117 @@ private fun StudioTrackpadLayout(
         }
     }
 
-    Column(
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(6.dp)
-    ) {
+    // One clean surface, no frame and no buttons: the whole lower area is the pad,
+    // separated from the header by a single hairline.
+    Column(modifier = Modifier.fillMaxSize()) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(1.dp)
+                .background(palette.keyGlyphColor.copy(alpha = 0.10f))
+        )
+
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
-                .clip(RoundedCornerShape(16.dp))
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            palette.letterKeycapBg.copy(alpha = 0.95f),
-                            palette.letterKeycapBg.copy(alpha = 0.85f)
-                        )
-                    )
-                )
-                .border(1.dp, palette.accentColor.copy(alpha = 0.35f), RoundedCornerShape(16.dp))
                 .pointerInput(Unit) {
-                    detectTapGestures(
-                        onTap = {
+                    // A laptop-style pad with no buttons at all:
+                    //   · a quick tap                     → left click
+                    //   · a quick tap in the bottom-right → right click
+                    //   · a quick tap in the bottom-left  → left click
+                    //   · press, hold, then travel        → a real drag (selection)
+                    //   · a plain swipe                   → pointer movement only
+                    // The three cases are told apart by TRAVEL and by HOW LONG the
+                    // finger rests, exactly like a hardware pad — never by a button.
+                    awaitEachGesture {
+                        val down = awaitFirstDown(requireUnconsumed = false)
+                        val startPosition = down.position
+                        val startedAt = System.currentTimeMillis()
+                        val padWidth = size.width.toFloat().coerceAtLeast(1f)
+                        val padHeight = size.height.toFloat().coerceAtLeast(1f)
+                        val startedInRightZone = isRightClickCorner(
+                            startPosition.x,
+                            startPosition.y,
+                            padWidth,
+                            padHeight
+                        )
+
+                        var dragging = false
+                        var multiTouch = false
+                        var travelled = false
+                        var accumulated = Offset.Zero
+                        var lastPosition = startPosition
+
+                        while (true) {
+                            // A short poll lets a resting finger arm the drag even when
+                            // no further pointer events arrive.
+                            val event = withTimeoutOrNull(35L) { awaitPointerEvent() }
+                            if (event == null) {
+                                val rested = System.currentTimeMillis() - startedAt >= DRAG_HOLD_MS
+                                if (!dragging && !travelled && !multiTouch && rested) {
+                                    // Grab: hold the tablet's left button where the
+                                    // pointer stands, so the coming travel selects.
+                                    dragging = true
+                                    vibrate()
+                                    onSendCommand("mouse_down", "button=left")
+                                }
+                                continue
+                            }
+
+                            val pressedNow = event.changes.filter { it.pressed }
+                            if (pressedNow.size >= 2) {
+                                // Two fingers belong to the scroll gesture below.
+                                multiTouch = true
+                            }
+                            val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                            if (!change.pressed) break
+
+                            val delta = change.position - lastPosition
+                            lastPosition = change.position
+
+                            if (!multiTouch) {
+                                if (dragging) {
+                                    // Drag: the pointer moves and the selection grows.
+                                    movementState.addAndGet(0, delta.x.toInt())
+                                    movementState.addAndGet(1, delta.y.toInt())
+                                    change.consume()
+                                } else if (travelled) {
+                                    // Plain swipe: move the pointer, never a click.
+                                    movementState.addAndGet(0, delta.x.toInt())
+                                    movementState.addAndGet(1, delta.y.toInt())
+                                } else {
+                                    accumulated += delta
+                                    if (accumulated.getDistance() > viewConfiguration.touchSlop) {
+                                        // Travel beyond the slop: this is a swipe, so it
+                                        // can never become a click. The travel collected
+                                        // so far is replayed so nothing is lost.
+                                        travelled = true
+                                        movementState.addAndGet(0, accumulated.x.toInt())
+                                        movementState.addAndGet(1, accumulated.y.toInt())
+                                        accumulated = Offset.Zero
+                                    }
+                                }
+                            }
+                        }
+
+                        val outcome = classifyPadGesture(
+                            travelled = travelled,
+                            dragging = dragging,
+                            multiTouch = multiTouch,
+                            rightCorner = startedInRightZone
+                        )
+                        if (outcome.releaseButton) {
+                            // Drop the held button: the tablet keeps the selection.
+                            onSendCommand("mouse_up", "button=left")
+                        }
+                        outcome.clickButton?.let { button ->
+                            // A quick tap, or a slow tap that never travelled.
                             vibrate()
                             KeyboardSoundEffect.playClick(context, "standard")
-                            // Fires immediately — the tablet turns two quick taps
-                            // into a native double click, so taps never lag.
-                            onSendCommand("mouse_click", "button=left")
+                            onSendCommand("mouse_click", "button=$button")
                         }
-                    )
-                }
-                .pointerInput(Unit) {
-                    detectDragGestures(
-                        onDrag = { change, dragAmount ->
-                            change.consume()
-                            val dx = dragAmount.x.toInt()
-                            val dy = dragAmount.y.toInt()
-                            movementState.addAndGet(0, dx)
-                            movementState.addAndGet(1, dy)
-                        }
-                    )
+                    }
                 }
                 // Two-finger swipe = mouse wheel (one finger keeps moving the pointer).
                 .pointerInput(Unit) {
@@ -1102,8 +1323,8 @@ private fun StudioTrackpadLayout(
                 Icon(
                     imageVector = Icons.Default.TouchApp,
                     contentDescription = null,
-                    tint = palette.accentColor,
-                    modifier = Modifier.size(32.dp)
+                    tint = palette.accentColor.copy(alpha = 0.9f),
+                    modifier = Modifier.size(30.dp)
                 )
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
@@ -1112,95 +1333,20 @@ private fun StudioTrackpadLayout(
                     fontFamily = ThmanyahSansFontFamily,
                     color = palette.keyGlyphColor.copy(alpha = 0.85f)
                 )
-            }
-        }
-
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(44.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Surface(
-                onClick = {
-                    vibrate()
-                    KeyboardSoundEffect.playClick(context, "standard")
-                    onSendCommand("mouse_click", "button=left")
-                },
-                modifier = Modifier.weight(1f).fillMaxHeight(),
-                shape = RoundedCornerShape(22.dp), // Fully rounded capsule shape
-                color = palette.accentColor,
-                shadowElevation = 2.dp
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Text(
-                        text = "نقرة يسار (Left Click)",
-                        fontWeight = FontWeight.Bold,
-                        color = palette.accentGlyphColor,
-                        fontFamily = ThmanyahSansFontFamily,
-                        fontSize = 12.sp
-                    )
-                }
-            }
-
-            Surface(
-                onClick = {
-                    vibrate()
-                    KeyboardSoundEffect.playClick(context, "standard")
-                    onSendCommand("mouse_click", "button=right")
-                },
-                modifier = Modifier.weight(1f).fillMaxHeight(),
-                shape = RoundedCornerShape(22.dp), // Fully rounded capsule shape
-                color = palette.modifierKeycapBg,
-                border = borderFromColor(palette.accentColor.copy(alpha = 0.6f)),
-                shadowElevation = 2.dp
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Text(
-                        text = "نقرة يمين (Right Click)",
-                        fontWeight = FontWeight.Bold,
-                        color = palette.keyGlyphColor,
-                        fontFamily = ThmanyahSansFontFamily,
-                        fontSize = 12.sp
-                    )
-                }
-            }
-        }
-
-        // Drag (hold) toggle: press once to grab, press again to release.
-        Surface(
-            onClick = {
-                val next = !isDragging
-                isDragging = next
-                vibrate()
-                KeyboardSoundEffect.playClick(context, "standard")
-                onSendCommand(if (next) "mouse_down" else "mouse_up", "button=left")
-            },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(40.dp),
-            shape = RoundedCornerShape(20.dp),
-            color = if (isDragging) palette.accentColor else palette.modifierKeycapBg,
-            border = borderFromColor(palette.accentColor.copy(alpha = if (isDragging) 1f else 0.6f)),
-            shadowElevation = 2.dp
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = if (isDragging) Icons.Default.PanTool else Icons.Default.OpenWith,
-                        contentDescription = null,
-                        tint = if (isDragging) palette.accentGlyphColor else palette.keyGlyphColor,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = if (isDragging) "إفلات الآن (Release)" else "سحب وإفلات (Drag)",
-                        fontWeight = FontWeight.Bold,
-                        color = if (isDragging) palette.accentGlyphColor else palette.keyGlyphColor,
-                        fontFamily = ThmanyahSansFontFamily,
-                        fontSize = 12.sp
-                    )
-                }
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "نقرة سريعة = نقرة يسار • أسفل اليمين = نقرة يمين",
+                    fontSize = 10.sp,
+                    fontFamily = ThmanyahSansFontFamily,
+                    color = palette.keyGlyphColor.copy(alpha = 0.55f)
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = "اضغطي مطولاً ثم اسحبي للتحديد",
+                    fontSize = 10.sp,
+                    fontFamily = ThmanyahSansFontFamily,
+                    color = palette.keyGlyphColor.copy(alpha = 0.45f)
+                )
             }
         }
     }
