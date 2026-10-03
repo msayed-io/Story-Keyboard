@@ -5,7 +5,7 @@ import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ActivityInfo
-import android.graphics.BitmapFactory
+import android.graphics.Bitmap
 import android.media.AudioAttributes
 import android.media.AudioManager
 import android.media.SoundPool
@@ -55,8 +55,6 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
@@ -244,18 +242,8 @@ fun KeyboardScreen(
     }
 
     // Base64 Custom Background Decoder
-    val bgBitmap: ImageBitmap? = remember(bgBase64) {
-        if (bgBase64.isNotEmpty()) {
-            try {
-                val bytes = Base64.decode(bgBase64, Base64.DEFAULT)
-                BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.asImageBitmap()
-            } catch (e: Exception) {
-                null
-            }
-        } else {
-            null
-        }
-    }
+    // الصورة تُفكّ إلى Bitmap لأن محرّك الزجاج يعالج بكسلها قبل عرضها.
+    val bgBitmap: Bitmap? = remember(bgBase64) { decodeBase64Bitmap(bgBase64) }
 
     // Preload Realistic Keyboard Click Sound System
     LaunchedEffect(Unit) {
