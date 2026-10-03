@@ -15,6 +15,9 @@ import android.os.Vibrator
 import android.os.VibratorManager
 import android.speech.RecognizerIntent
 import android.util.Base64
+import android.view.View
+import android.view.ViewTreeObserver
+import android.view.WindowManager
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -59,6 +62,8 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
@@ -72,6 +77,9 @@ import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.example.ui.theme.*
 import com.example.ui.theme.ThmanyahSansFontFamily
 import com.example.ui.theme.ThmanyahSerifDisplayFontFamily
@@ -172,14 +180,10 @@ fun KeyboardScreen(
     var pasteFeedback by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
 
-    // The writer bar (undo / redo / clipboard / save) is open by default in the
-    // typing modes — Arabic, English and numbers — and folded away in mouse mode,
-    // where the whole surface belongs to the pointer. The small chevron chip under
-    // the bar flips this any time, in any mode.
-    var isToolbarVisible by remember { mutableStateOf(currentMode != KeyboardMode.TRACKPAD) }
-    LaunchedEffect(currentMode) {
-        isToolbarVisible = currentMode != KeyboardMode.TRACKPAD
-    }
+    // The writer bar (undo / redo / clipboard / save) is folded away by default
+    // in all modes, so the writer enjoys a clean, spacious keyboard from the start.
+    // The small chevron chip under the bar flips this any time.
+    var isToolbarVisible by remember { mutableStateOf(false) }
 
     // Paste has two possible sources: this phone's clipboard or the tablet's own.
     val clipboardManager = remember {
@@ -203,27 +207,99 @@ fun KeyboardScreen(
         onBack()
     }
 
-    // Lock Landscape Mode
-    DisposableEffect(Unit) {
+    val lifecycleOwner = LocalLifecycleOwner.current
+
+    // Lock Landscape Mode & Enforce Strict Unbreakable Immersive Fullscreen
+    DisposableEffect(lifecycleOwner) {
         val activity = context as? Activity
         val originalOrientation = activity?.requestedOrientation ?: ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
         activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
-        
+
         val window = activity?.window
         val view = window?.decorView
-        if (window != null && view != null) {
-            val insetsController = WindowCompat.getInsetsController(window, view)
-            insetsController.hide(WindowInsetsCompat.Type.statusBars() or WindowInsetsCompat.Type.navigationBars())
-            insetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+
+        @Suppress("DEPRECATION")
+        val originalSystemUi = view?.systemUiVisibility ?: 0
+
+        fun hideSystemBarsStrictly() {
+            if (window == null || view == null) return
+            try {
+                // 1) Modern Android 11+ Insets Controller (hide all system bars with transient swipe)
+                val insetsController = WindowCompat.getInsetsController(window, view)
+                insetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                insetsController.hide(WindowInsetsCompat.Type.systemBars())
+
+                // 2) Cutout Mode - Extend smoothly across notches/cutouts
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                    val lp = window.attributes
+                    if (lp.layoutInDisplayCutoutMode != WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES) {
+                        lp.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+                        window.attributes = lp
+                    }
+                }
+
+                // 3) Universal Legacy Window Flags (Mandatory for aggressive OEM skins like HyperOS/OneUI)
+                @Suppress("DEPRECATION")
+                window.addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN)
+
+                @Suppress("DEPRECATION")
+                view.systemUiVisibility = (
+                    View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                    or View.SYSTEM_UI_FLAG_FULLSCREEN
+                    or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                    or View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                    or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                    or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                )
+            } catch (_: Exception) {}
         }
-        
+
+        // Apply immediately
+        hideSystemBarsStrictly()
+
+        // Re-enforce whenever the window regains focus (e.g. closing notification shade, incoming alerts, app switching)
+        val focusListener = ViewTreeObserver.OnWindowFocusChangeListener { hasFocus ->
+            if (hasFocus) {
+                hideSystemBarsStrictly()
+            }
+        }
+        view?.viewTreeObserver?.addOnWindowFocusChangeListener(focusListener)
+
+        // Re-enforce on system UI visibility change (if OEM tries to un-hide status bar)
+        @Suppress("DEPRECATION")
+        val sysUiListener = View.OnSystemUiVisibilityChangeListener { visibility ->
+            if ((visibility and View.SYSTEM_UI_FLAG_FULLSCREEN) == 0) {
+                view?.post { hideSystemBarsStrictly() }
+            }
+        }
+        @Suppress("DEPRECATION")
+        view?.setOnSystemUiVisibilityChangeListener(sysUiListener)
+
+        // Lifecycle observer to re-hide when returning from background
+        val lifecycleObserver = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                hideSystemBarsStrictly()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(lifecycleObserver)
+
         onDispose {
             activity?.requestedOrientation = originalOrientation
-            val windowObj = activity?.window
-            val viewObj = windowObj?.decorView
-            if (windowObj != null && viewObj != null) {
-                val insetsController = WindowCompat.getInsetsController(windowObj, viewObj)
-                insetsController.show(WindowInsetsCompat.Type.statusBars() or WindowInsetsCompat.Type.navigationBars())
+            if (window != null && view != null) {
+                try {
+                    view.viewTreeObserver?.removeOnWindowFocusChangeListener(focusListener)
+                    @Suppress("DEPRECATION")
+                    view.setOnSystemUiVisibilityChangeListener(null)
+                    lifecycleOwner.lifecycle.removeObserver(lifecycleObserver)
+
+                    @Suppress("DEPRECATION")
+                    window.clearFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN)
+                    @Suppress("DEPRECATION")
+                    view.systemUiVisibility = originalSystemUi
+
+                    val insetsController = WindowCompat.getInsetsController(window, view)
+                    insetsController.show(WindowInsetsCompat.Type.systemBars())
+                } catch (_: Exception) {}
             }
         }
     }
@@ -246,21 +322,28 @@ fun KeyboardScreen(
     // الصورة تُفكّ إلى Bitmap لأن محرّك الزجاج يعالج بكسلها قبل عرضها.
     val bgBitmap: Bitmap? = remember(bgBase64) { decodeBase64Bitmap(bgBase64) }
 
-    // ما وراء الزجاج: صورة الكاتبة مموّهة، تُبنى مرة واحدة وتقرأ منها كل بطاقة منطقتها.
+    // ما وراء الزجاج: صورة الكاتبة مموّهة، تُبنى مرة واحدة وتقرأ منها كل بطاقة منطقتها بدقة كاملة.
     val screenSizePx = rememberScreenSizePx()
+    var containerSizePx by remember { mutableStateOf(screenSizePx) }
+    var containerOriginInWindow by remember { mutableStateOf(Offset.Zero) }
+
+    val effectiveTargetW = maxOf(containerSizePx.first, screenSizePx.first)
+    val effectiveTargetH = maxOf(containerSizePx.second, screenSizePx.second)
+
     val glassImage = rememberGlassImage(
         sourceBitmap = bgBitmap,
         sourceKey = "keyboard-${bgBase64.length}-${bgBase64.hashCode()}",
-        targetWidthPx = screenSizePx.first,
-        targetHeightPx = screenSizePx.second,
+        targetWidthPx = effectiveTargetW,
+        targetHeightPx = effectiveTargetH,
         blurRadiusPx = blur
     )
-    val glassSampler = remember(glassImage, opacity) {
+    val glassSampler = remember(glassImage, opacity, effectiveTargetW, effectiveTargetH, containerOriginInWindow) {
         glassImage?.let {
             GlassSampler(
                 image = it,
-                pxPerNodePx = it.width.toFloat() / screenSizePx.first.coerceAtLeast(1),
-                originInWindow = Offset.Zero,
+                containerWidthPx = effectiveTargetW,
+                containerHeightPx = effectiveTargetH,
+                originInWindow = containerOriginInWindow,
                 opacity = opacity
             )
         }
@@ -294,6 +377,79 @@ fun KeyboardScreen(
         onSendCommand(action, extraParams)
     }
 
+    KeyboardFullDesign(
+        palette = palette,
+        opacity = opacity,
+        bgBitmap = bgBitmap,
+        glassSampler = glassSampler,
+        currentMode = currentMode,
+        onModeChange = { currentMode = it },
+        isShifted = isShifted,
+        onToggleShift = { isShifted = !isShifted },
+        isToolbarVisible = isToolbarVisible,
+        onToggleToolbar = {
+            isToolbarVisible = !isToolbarVisible
+            vibratePhone(context, configuredVibration)
+            KeyboardSoundEffect.playClick(context, "standard")
+        },
+        onKeyTap = handleKeyTap,
+        onBack = onBack,
+        isConnected = isConnected,
+        tabletIp = tabletIp,
+        pasteFeedback = pasteFeedback,
+        onMicClick = {
+            try {
+                val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                    putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                    putExtra(RecognizerIntent.EXTRA_LANGUAGE, "ar-SA")
+                }
+                speechRecognizerLauncher.launch(intent)
+            } catch (_: Exception) {}
+        },
+        onSendCommand = onSendCommand,
+        onSendPasteText = onSendPasteText,
+        phoneClipboardText = ::phoneClipboardText,
+        flashPasteFeedback = ::flashPasteFeedback,
+        configuredVibration = configuredVibration,
+        pressedKeyLabel = pressedKeyLabel,
+        onContainerPositioned = { size, origin ->
+            containerSizePx = size
+            containerOriginInWindow = origin
+        },
+        modifier = modifier
+    )
+}
+
+// =========================================================================
+// THE OFFICIAL KEYBOARD DESIGN ENGINE (Shared between Live Keyboard & Preview)
+// =========================================================================
+@Composable
+internal fun KeyboardFullDesign(
+    palette: ThemePalette,
+    opacity: Float,
+    bgBitmap: Bitmap?,
+    glassSampler: GlassSampler?,
+    currentMode: KeyboardMode = KeyboardMode.ARABIC,
+    onModeChange: (KeyboardMode) -> Unit = {},
+    isShifted: Boolean = false,
+    onToggleShift: () -> Unit = {},
+    isToolbarVisible: Boolean = false,
+    onToggleToolbar: () -> Unit = {},
+    onKeyTap: (String, String, String) -> Unit = { _, _, _ -> },
+    onBack: () -> Unit = {},
+    isConnected: Boolean = true,
+    tabletIp: String = "",
+    pasteFeedback: String? = null,
+    onMicClick: () -> Unit = {},
+    onSendCommand: (String, String) -> Unit = { _, _ -> },
+    onSendPasteText: (String, (Boolean) -> Unit) -> Unit = { _, _ -> },
+    phoneClipboardText: () -> String = { "" },
+    flashPasteFeedback: (String) -> Unit = {},
+    configuredVibration: Int = 20,
+    pressedKeyLabel: String? = null,
+    onContainerPositioned: (Pair<Int, Int>, Offset) -> Unit = { _, _ -> },
+    modifier: Modifier = Modifier
+) {
     // Enforce LTR Layout Direction for the entire keyboard screen to prevent mirroring on Arabic system phones
     CompositionLocalProvider(
         LocalLayoutDirection provides LayoutDirection.Ltr,
@@ -302,312 +458,296 @@ fun KeyboardScreen(
         Box(
             modifier = modifier
                 .fillMaxSize()
+                .onGloballyPositioned { coordinates ->
+                    if (coordinates.size.width > 0 && coordinates.size.height > 0) {
+                        onContainerPositioned(
+                            coordinates.size.width to coordinates.size.height,
+                            coordinates.positionInWindow()
+                        )
+                    }
+                }
                 .background(palette.canvasBackground)
                 .testTag("native_keyboard_screen")
         ) {
-        // =============================================================
-        // BACKGROUND LAYER
-        // بلا صورة: التدرّج القديم نفسه بالحرف (لا يتغيّر شيء عمّا اعتادت عليه).
-        // مع صورة: الطبقة الزجاجية الحقيقية — تمويه ناعم + إشباع لوني + غطاء
-        // بدرجة الشفافية المختارة + نويز رقيق يمنع التعرّجات.
-        // =============================================================
-        if (bgBitmap != null) {
-            // الخلفية واضحة تماماً: التمويه يعيش *داخل* البطاقات فقط.
-            GlassWallpaper(bitmap = bgBitmap, modifier = Modifier.fillMaxSize())
-        } else {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        Brush.verticalGradient(
-                            colors = listOf(
-                                palette.surfaceBackground.copy(alpha = 0.90f),
-                                palette.canvasBackground.copy(alpha = 0.98f)
+            // =============================================================
+            // BACKGROUND LAYER
+            // =============================================================
+            if (bgBitmap != null) {
+                GlassWallpaper(bitmap = bgBitmap, modifier = Modifier.fillMaxSize())
+            } else {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            Brush.verticalGradient(
+                                colors = listOf(
+                                    palette.surfaceBackground.copy(alpha = 0.90f),
+                                    palette.canvasBackground.copy(alpha = 0.98f)
+                                )
                             )
                         )
-                    )
-            )
-        }
+                )
+            }
 
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 8.dp, vertical = 6.dp)
-        ) {
-            // =============================================================
-            // TOP MINIMAL CONTROL HEADER (44dp Apple Utility Navigation)
-            // =============================================================
-            Row(
+            Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .height(44.dp)
-                    .clip(RoundedCornerShape(20.dp))
-                    .glassSurface(
-                        sampler = LocalGlassSampler.current,
-                        fillColor = palette.surfaceBackground,
-                        tintAlpha = GlassMath.surfaceTintAlpha(opacity),
-                        radius = 20.dp,
-                        borderColor = palette.keycapBorder,
-                        borderWidth = 1.dp,
-                        rimWidth = GlassMath.EDGE_RIM_WIDTH_HEADER_DP.dp
-                    )
-                    .padding(horizontal = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+                    .fillMaxSize()
+                    .padding(horizontal = 8.dp, vertical = 6.dp)
             ) {
-                // Exit & Live Status Indicator
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                // =============================================================
+                // TOP MINIMAL CONTROL HEADER (44dp Apple Utility Navigation)
+                // =============================================================
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(44.dp)
+                        .clip(RoundedCornerShape(20.dp))
+                        .glassSurface(
+                            sampler = LocalGlassSampler.current,
+                            fillColor = palette.surfaceBackground,
+                            tintAlpha = GlassMath.surfaceTintAlpha(opacity),
+                            radius = 20.dp,
+                            borderColor = palette.keycapBorder,
+                            borderWidth = 1.dp,
+                            rimWidth = GlassMath.EDGE_RIM_WIDTH_HEADER_DP.dp
+                        )
+                        .padding(horizontal = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    // Exit & Live Status Indicator
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(28.dp)
+                                .clip(CircleShape)
+                                .background(palette.modifierKeycapBg)
+                                .clickable(onClick = onBack)
+                                .testTag("btn_keyboard_exit"),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "خروج",
+                                tint = palette.keyGlyphColor,
+                                modifier = Modifier.size(15.dp)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(8.dp))
+
+                        // Status Pill
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(palette.modifierKeycapBg.copy(alpha = 0.8f))
+                                .padding(horizontal = 8.dp, vertical = 3.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(6.dp)
+                                    .clip(CircleShape)
+                                    .background(if (isConnected) Color(0xFF10B981) else Color(0xFFEF4444))
+                            )
+                            Spacer(modifier = Modifier.width(5.dp))
+                            Text(
+                                text = if (isConnected) (if (tabletIp.isNotEmpty()) tabletIp else "متصل") else "غير متصل",
+                                fontSize = 11.sp,
+                                fontFamily = ThmanyahSansFontFamily,
+                                fontWeight = FontWeight.SemiBold,
+                                color = palette.keyGlyphColor.copy(alpha = 0.85f)
+                            )
+                        }
+                    }
+
+                    // SEGMENTED MODE PILLS (عربي | EN | 123 | 🖱️)
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(2.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(palette.canvasBackground.copy(alpha = 0.7f))
+                            .padding(2.dp)
+                    ) {
+                        SegmentedModePill("عربي", currentMode == KeyboardMode.ARABIC, palette) { onModeChange(KeyboardMode.ARABIC) }
+                        SegmentedModePill("EN", currentMode == KeyboardMode.ENGLISH, palette) { onModeChange(KeyboardMode.ENGLISH) }
+                        SegmentedModePill("123", currentMode == KeyboardMode.SYMBOLS, palette) { onModeChange(KeyboardMode.SYMBOLS) }
+                        SegmentedModePill("فأرة 🖱️", currentMode == KeyboardMode.TRACKPAD, palette) { onModeChange(KeyboardMode.TRACKPAD) }
+                    }
+
+                    // Voice Speech Recognition Button (Apple Circular Control)
                     Box(
                         modifier = Modifier
                             .size(28.dp)
                             .clip(CircleShape)
-                            .background(palette.modifierKeycapBg)
-                            .clickable(onClick = onBack)
-                            .testTag("btn_keyboard_exit"),
+                            .background(palette.accentColor)
+                            .clickable(onClick = onMicClick)
+                            .testTag("btn_voice_input"),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "خروج",
-                            tint = palette.keyGlyphColor,
+                            imageVector = Icons.Default.Mic,
+                            contentDescription = "الإملاء الصوتي",
+                            tint = palette.accentGlyphColor,
                             modifier = Modifier.size(15.dp)
                         )
                     }
+                }
 
-                    Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.height(4.dp))
 
-                    // Status Pill
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
+                // Floating status chip: an overlay above the writer bar
+                pasteFeedback?.let { message ->
+                    Box(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(palette.modifierKeycapBg.copy(alpha = 0.8f))
-                            .padding(horizontal = 8.dp, vertical = 3.dp)
+                            .fillMaxWidth()
+                            .height(0.dp),
+                        contentAlignment = Alignment.Center
                     ) {
                         Box(
                             modifier = Modifier
-                                .size(6.dp)
-                                .clip(CircleShape)
-                                .background(if (isConnected) Color(0xFF10B981) else Color(0xFFEF4444))
-                        )
-                        Spacer(modifier = Modifier.width(5.dp))
-                        Text(
-                            text = if (isConnected) (if (tabletIp.isNotEmpty()) tabletIp else "متصل") else "غير متصل",
-                            fontSize = 11.sp,
-                            fontFamily = ThmanyahSansFontFamily,
-                            fontWeight = FontWeight.SemiBold,
-                            color = palette.keyGlyphColor.copy(alpha = 0.85f)
-                        )
+                                .offset(y = (-30).dp)
+                                .background(
+                                    color = palette.surfaceBackground.copy(alpha = 0.96f),
+                                    shape = RoundedCornerShape(50)
+                                )
+                                .border(
+                                    width = 1.dp,
+                                    color = palette.accentColor.copy(alpha = 0.45f),
+                                    shape = RoundedCornerShape(50)
+                                )
+                                .padding(horizontal = 14.dp, vertical = 5.dp)
+                        ) {
+                            Text(
+                                text = message,
+                                fontFamily = ThmanyahSansFontFamily,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = palette.accentColor
+                            )
+                        }
                     }
                 }
 
-                // SEGMENTED MODE PILLS (عربي | EN | 123 | 🖱️)
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(2.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(palette.canvasBackground.copy(alpha = 0.7f))
-                        .padding(2.dp)
-                ) {
-                    SegmentedModePill("عربي", currentMode == KeyboardMode.ARABIC, palette) { currentMode = KeyboardMode.ARABIC }
-                    SegmentedModePill("EN", currentMode == KeyboardMode.ENGLISH, palette) { currentMode = KeyboardMode.ENGLISH }
-                    SegmentedModePill("123", currentMode == KeyboardMode.SYMBOLS, palette) { currentMode = KeyboardMode.SYMBOLS }
-                    SegmentedModePill("فأرة 🖱️", currentMode == KeyboardMode.TRACKPAD, palette) { currentMode = KeyboardMode.TRACKPAD }
-                }
-
-                // Voice Speech Recognition Button (Apple Circular Control)
-                Box(
-                    modifier = Modifier
-                        .size(28.dp)
-                        .clip(CircleShape)
-                        .background(palette.accentColor)
-                        .clickable {
-                            try {
-                                val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-                                    putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-                                    putExtra(RecognizerIntent.EXTRA_LANGUAGE, "ar-SA")
-                                }
-                                speechRecognizerLauncher.launch(intent)
-                            } catch (_: Exception) {}
-                        }
-                        .testTag("btn_voice_input"),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Mic,
-                        contentDescription = "الإملاء الصوتي",
-                        tint = palette.accentGlyphColor,
-                        modifier = Modifier.size(15.dp)
+                // WRITER SHORTCUTS TOOLBAR
+                AnimatedVisibility(
+                    visible = isToolbarVisible,
+                    enter = fadeIn(tween(durationMillis = 220)) + expandVertically(
+                        animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing),
+                        expandFrom = Alignment.Top
+                    ),
+                    exit = fadeOut(tween(durationMillis = 140)) + shrinkVertically(
+                        animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing),
+                        shrinkTowards = Alignment.Top
                     )
+                ) {
+                    Column {
+                        WriterToolsRow(
+                            palette = palette,
+                            onKey = onKeyTap,
+                            onPasteFromPhone = {
+                                val text = phoneClipboardText()
+                                if (text.trim().isEmpty()) {
+                                    flashPasteFeedback("محفظة الهاتف فارغة")
+                                } else if (text.length > 400_000) {
+                                    flashPasteFeedback("النص أكبر من الحد المسموح")
+                                } else {
+                                    flashPasteFeedback("جارٍ الإرسال…")
+                                    onSendPasteText(text) { ok ->
+                                        flashPasteFeedback(
+                                            if (ok) "تم لصق ${text.length} حرفاً ✓" else "تعذّر الإرسال — تأكدي من الاتصال"
+                                        )
+                                    }
+                                }
+                            },
+                            onPasteFromTablet = {
+                                onKeyTap("لصق", "shortcut", "cmd=paste_local")
+                                flashPasteFeedback("جارٍ اللصق من محفظة التابلت…")
+                            }
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                    }
                 }
-            }
 
-            Spacer(modifier = Modifier.height(4.dp))
-
-            // Floating status chip: an overlay above the writer bar, so the
-            // sentence can never be squeezed or cut at the screen edge.
-            pasteFeedback?.let { message ->
+                // The toggle chip
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(0.dp),
+                        .height(22.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .offset(y = (-30).dp)
-                            .background(
-                                color = palette.surfaceBackground.copy(alpha = 0.96f),
-                                shape = RoundedCornerShape(50)
-                            )
-                            .border(
-                                width = 1.dp,
-                                color = palette.accentColor.copy(alpha = 0.45f),
-                                shape = RoundedCornerShape(50)
-                            )
-                            .padding(horizontal = 14.dp, vertical = 5.dp)
-                    ) {
-                        Text(
-                            text = message,
-                            fontFamily = ThmanyahSansFontFamily,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = palette.accentColor
+                    WriterBarToggleChip(
+                        isOpen = isToolbarVisible,
+                        palette = palette,
+                        onToggle = onToggleToolbar
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(2.dp))
+
+                // KEYBOARD CANVAS
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    contentAlignment = Alignment.Center
+                ) {
+                    when (currentMode) {
+                        KeyboardMode.ARABIC -> StudioArabicLayout(
+                            palette = palette,
+                            onKey = onKeyTap,
+                            onSwitchEn = { onModeChange(KeyboardMode.ENGLISH) },
+                            onSwitchSym = { onModeChange(KeyboardMode.SYMBOLS) }
+                        )
+
+                        KeyboardMode.ENGLISH -> StudioEnglishLayout(
+                            palette = palette,
+                            isShifted = isShifted,
+                            onToggleShift = onToggleShift,
+                            onKey = onKeyTap,
+                            onSwitchAr = { onModeChange(KeyboardMode.ARABIC) },
+                            onSwitchSym = { onModeChange(KeyboardMode.SYMBOLS) },
+                            configuredVibration = configuredVibration
+                        )
+
+                        KeyboardMode.SYMBOLS -> StudioSymbolsLayout(
+                            palette = palette,
+                            onKey = onKeyTap,
+                            onSwitchAr = { onModeChange(KeyboardMode.ARABIC) }
+                        )
+
+                        KeyboardMode.TRACKPAD -> StudioTrackpadLayout(
+                            palette = palette,
+                            onSendCommand = onSendCommand,
+                            vibrate = {}
                         )
                     }
-                }
-            }
 
-            // =============================================================
-            // WRITER SHORTCUTS TOOLBAR — unfolded by default while typing and
-            // folded away in mouse mode. It slides in exactly where it always
-            // lived: same place, same size, same buttons.
-            // =============================================================
-            AnimatedVisibility(
-                visible = isToolbarVisible,
-                enter = fadeIn(tween(durationMillis = 220)) + expandVertically(
-                    animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing),
-                    expandFrom = Alignment.Top
-                ),
-                exit = fadeOut(tween(durationMillis = 140)) + shrinkVertically(
-                    animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing),
-                    shrinkTowards = Alignment.Top
-                )
-            ) {
-                Column {
-                    WriterToolsRow(
-                        palette = palette,
-                        onKey = handleKeyTap,
-                        onPasteFromPhone = {
-                            val text = phoneClipboardText()
-                            if (text.trim().isEmpty()) {
-                                flashPasteFeedback("محفظة الهاتف فارغة")
-                            } else if (text.length > 400_000) {
-                                flashPasteFeedback("النص أكبر من الحد المسموح")
-                            } else {
-                                flashPasteFeedback("جارٍ الإرسال…")
-                                onSendPasteText(text) { ok ->
-                                    flashPasteFeedback(
-                                        if (ok) "تم لصق ${text.length} حرفاً ✓" else "تعذّر الإرسال — تأكدي من الاتصال"
-                                    )
-                                }
-                            }
-                        },
-                        onPasteFromTablet = {
-                            handleKeyTap("لصق", "shortcut", "cmd=paste_local")
-                            flashPasteFeedback("جارٍ اللصق من محفظة التابلت…")
+                    // Floating Keypop Preview Bubble
+                    pressedKeyLabel?.let { label ->
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.TopCenter)
+                                .offset(y = (-12).dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(palette.accentColor)
+                                .padding(horizontal = 18.dp, vertical = 6.dp)
+                                .shadow(8.dp)
+                        ) {
+                            Text(
+                                text = label,
+                                fontSize = 24.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = palette.accentGlyphColor,
+                                fontFamily = ThmanyahSansFontFamily
+                            )
                         }
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                }
-            }
-
-            // The toggle chip: centred between the bar and the surface below, so it
-            // never covers a single element of the bar. It glides with the fold.
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(22.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                WriterBarToggleChip(
-                    isOpen = isToolbarVisible,
-                    palette = palette,
-                    onToggle = {
-                        isToolbarVisible = !isToolbarVisible
-                        vibratePhone(context, configuredVibration)
-                        KeyboardSoundEffect.playClick(context, "standard")
-                    }
-                )
-            }
-
-            Spacer(modifier = Modifier.height(2.dp))
-
-            // =============================================================
-            // KEYBOARD CANVAS
-            // =============================================================
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
-                contentAlignment = Alignment.Center
-            ) {
-                when (currentMode) {
-                    KeyboardMode.ARABIC -> StudioArabicLayout(
-                        palette = palette,
-                        onKey = handleKeyTap,
-                        onSwitchEn = { currentMode = KeyboardMode.ENGLISH },
-                        onSwitchSym = { currentMode = KeyboardMode.SYMBOLS }
-                    )
-
-                    KeyboardMode.ENGLISH -> StudioEnglishLayout(
-                        palette = palette,
-                        isShifted = isShifted,
-                        onToggleShift = { isShifted = !isShifted },
-                        onKey = handleKeyTap,
-                        onSwitchAr = { currentMode = KeyboardMode.ARABIC },
-                        onSwitchSym = { currentMode = KeyboardMode.SYMBOLS },
-                        configuredVibration = configuredVibration
-                    )
-
-                    KeyboardMode.SYMBOLS -> StudioSymbolsLayout(
-                        palette = palette,
-                        onKey = handleKeyTap,
-                        onSwitchAr = { currentMode = KeyboardMode.ARABIC }
-                    )
-
-                    KeyboardMode.TRACKPAD -> StudioTrackpadLayout(
-                        palette = palette,
-                        onSendCommand = onSendCommand,
-                        vibrate = { vibratePhone(context, configuredVibration) }
-                    )
-                }
-
-                // Floating Keypop Preview Bubble
-                pressedKeyLabel?.let { label ->
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.TopCenter)
-                            .offset(y = (-12).dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(palette.accentColor)
-                            .padding(horizontal = 18.dp, vertical = 6.dp)
-                            .shadow(8.dp)
-                    ) {
-                        Text(
-                            text = label,
-                            fontSize = 24.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = palette.accentGlyphColor,
-                            fontFamily = ThmanyahSansFontFamily
-                        )
                     }
                 }
             }
         }
     }
-}
 }
 
 // =========================================================================
@@ -760,11 +900,31 @@ private fun WriterToolsRow(
                     androidx.compose.material3.DropdownMenu(
                         expanded = isPasteMenuOpen,
                         onDismissRequest = { isPasteMenuOpen = false },
-                        containerColor = palette.surfaceBackground,
-                        shape = RoundedCornerShape(14.dp),
-                        modifier = Modifier.width(150.dp)
+                        containerColor = Color.Transparent,
+                        shape = RoundedCornerShape(16.dp),
+                        shadowElevation = 0.dp,
+                        tonalElevation = 0.dp,
+                        modifier = Modifier
+                            .width(170.dp)
+                            .clip(RoundedCornerShape(16.dp))
+                            .glassSurface(
+                                sampler = LocalGlassSampler.current,
+                                fillColor = palette.surfaceBackground,
+                                tintAlpha = GlassMath.surfaceTintAlpha(LocalGlassSampler.current?.opacity ?: 0.45f),
+                                radius = 16.dp,
+                                borderColor = palette.keycapBorder.copy(alpha = 0.45f),
+                                borderWidth = 1.dp
+                            )
                     ) {
                         DropdownMenuItem(
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.PhoneAndroid,
+                                    contentDescription = null,
+                                    tint = palette.accentColor,
+                                    modifier = Modifier.size(17.dp)
+                                )
+                            },
                             text = {
                                 Text(
                                     "محفظة الهاتف",
@@ -779,7 +939,19 @@ private fun WriterToolsRow(
                                 onPasteFromPhone()
                             }
                         )
+                        HorizontalDivider(
+                            color = palette.keycapBorder.copy(alpha = 0.35f),
+                            thickness = 0.5.dp
+                        )
                         DropdownMenuItem(
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.TabletAndroid,
+                                    contentDescription = null,
+                                    tint = palette.accentColor,
+                                    modifier = Modifier.size(17.dp)
+                                )
+                            },
                             text = {
                                 Text(
                                     "محفظة التابلت",
@@ -945,7 +1117,7 @@ private fun StudioArabicLayout(
                 icon = Icons.Default.KeyboardReturn,
                 modifier = Modifier.weight(1.5f),
                 palette = palette,
-                isAccent = true,
+                isModifier = true,
                 isCapsule = true,
                 onKey = { onKey("إدخال", "key", "key=Enter") }
             )
@@ -1048,7 +1220,7 @@ private fun StudioEnglishLayout(
                 icon = Icons.Default.KeyboardReturn,
                 modifier = Modifier.weight(1.5f),
                 palette = palette,
-                isAccent = true,
+                isModifier = true,
                 isCapsule = true,
                 onKey = { onKey("Enter", "key", "key=Enter") }
             )

@@ -412,19 +412,11 @@ internal fun renderGlassBitmap(
     val renderHeight = GlassMath.scaledSize(targetHeightPx, renderScale)
     val renderRadius = max(0, (blurRadiusPx * renderScale).roundToInt())
 
-    // القصّ يترك هامشاً بسيطاً على كل جهة: فما خلف البطاقة يطابق ما تراه العين
-    // على الحافة، ولا تنزاح الصورة عن مكانها.
-    val cropped = GlassMath.insetCrop(source.width, source.height, GlassMath.OUTER_EDGE_INSET)
-    val fitted = GlassMath.centerCrop(
-        cropped.width,
-        cropped.height,
+    // القصّ المركزي يطابق تماماً ما تعرضه خلفية التطبيق (ContentScale.Crop)
+    val crop = GlassMath.centerCrop(
+        source.width,
+        source.height,
         renderWidth.toFloat() / renderHeight.toFloat()
-    )
-    val crop = CropRect(
-        cropped.left + fitted.left,
-        cropped.top + fitted.top,
-        cropped.left + fitted.right,
-        cropped.top + fitted.bottom
     )
     if (crop.width <= 0 || crop.height <= 0) return null
 
@@ -466,7 +458,7 @@ internal fun decodeBase64Bitmap(base64: String): Bitmap? {
     return try {
         val bytes = android.util.Base64.decode(base64, android.util.Base64.DEFAULT)
         android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
-    } catch (e: Exception) {
+    } catch (t: Throwable) {
         null
     }
 }
@@ -518,12 +510,16 @@ internal fun rememberGlassImage(
             return@LaunchedEffect
         }
         delay(70)
-        val rendered = withContext(Dispatchers.Default) {
-            renderGlassBitmap(bitmap, targetWidthPx, targetHeightPx, blurRadiusPx, saturation)
-        }
-        if (rendered != null) {
-            GlassCache.put(sourceKey, targetWidthPx, targetHeightPx, blurRadiusPx, saturation, rendered)
-            state.value = rendered.asImageBitmap()
+        try {
+            val rendered = withContext(Dispatchers.Default) {
+                renderGlassBitmap(bitmap, targetWidthPx, targetHeightPx, blurRadiusPx, saturation)
+            }
+            if (rendered != null) {
+                GlassCache.put(sourceKey, targetWidthPx, targetHeightPx, blurRadiusPx, saturation, rendered)
+                state.value = rendered.asImageBitmap()
+            }
+        } catch (t: Throwable) {
+            t.printStackTrace()
         }
     }
     return state.value
@@ -537,11 +533,27 @@ internal fun rememberGlassImage(
  */
 internal class GlassSampler(
     val image: ImageBitmap,
-    val pxPerNodePx: Float,
+    val containerWidthPx: Int,
+    val containerHeightPx: Int,
     val originInWindow: Offset = Offset.Zero,
     /** قيمة شريط الشفافية: منها تُشتقّ تغطية كل بطاقة. */
     val opacity: Float = GlassMath.DEFAULT_TINT_ALPHA
 ) {
+    constructor(
+        image: ImageBitmap,
+        pxPerNodePx: Float,
+        originInWindow: Offset = Offset.Zero,
+        opacity: Float = GlassMath.DEFAULT_TINT_ALPHA
+    ) : this(
+        image = image,
+        containerWidthPx = if (pxPerNodePx > 0f) (image.width / pxPerNodePx).roundToInt() else image.width,
+        containerHeightPx = if (pxPerNodePx > 0f) (image.height / pxPerNodePx).roundToInt() else image.height,
+        originInWindow = originInWindow,
+        opacity = opacity
+    )
+
+    val pxPerNodePx: Float get() = image.width.toFloat() / containerWidthPx.coerceAtLeast(1)
+
     /** تغطية البطاقات العادية. */
     fun tintAlpha(): Float = GlassMath.surfaceTintAlpha(opacity)
 
@@ -609,17 +621,20 @@ private class GlassSurfaceNode(
         val shapePath = Path().apply { addOutline(shapeOutline) }
 
         clipPath(shapePath) {
-            if (active != null) {
-                // ١) ما خلف البطاقة: الجزء المقابل من الصورة المموّهة.
-                val scale = active.pxPerNodePx
+            if (active != null && active.containerWidthPx > 0 && active.containerHeightPx > 0) {
+                // ١) ما خلف البطاقة: الجزء المقابل من الصورة المموّهة بحساب دقيق لحدود الشاشة.
                 val imageWidth = active.image.width
                 val imageHeight = active.image.height
-                val srcX = ((positionInWindow.x - active.originInWindow.x) * scale)
-                    .roundToInt().coerceIn(0, max(0, imageWidth - 1))
-                val srcY = ((positionInWindow.y - active.originInWindow.y) * scale)
-                    .roundToInt().coerceIn(0, max(0, imageHeight - 1))
-                val srcW = (size.width * scale).roundToInt().coerceIn(1, imageWidth)
-                val srcH = (size.height * scale).roundToInt().coerceIn(1, imageHeight)
+                val relX = positionInWindow.x - active.originInWindow.x
+                val relY = positionInWindow.y - active.originInWindow.y
+                val scaleX = imageWidth.toFloat() / active.containerWidthPx
+                val scaleY = imageHeight.toFloat() / active.containerHeightPx
+
+                val srcX = (relX * scaleX).roundToInt().coerceIn(0, max(0, imageWidth - 1))
+                val srcY = (relY * scaleY).roundToInt().coerceIn(0, max(0, imageHeight - 1))
+                val srcW = (size.width * scaleX).roundToInt().coerceIn(1, max(1, imageWidth - srcX))
+                val srcH = (size.height * scaleY).roundToInt().coerceIn(1, max(1, imageHeight - srcY))
+
                 drawImage(
                     image = active.image,
                     srcOffset = IntOffset(srcX, srcY),

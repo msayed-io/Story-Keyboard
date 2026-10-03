@@ -8,6 +8,8 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -16,6 +18,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Palette
@@ -28,15 +31,21 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ui.theme.*
@@ -106,23 +115,84 @@ fun CustomizationScreen(
             )
         }
 
-        // Scrollable Settings Cards Container مع توزيع رأسي انسيابي ومريح
+        // Scrollable Settings Cards Container مع مسافة علوية كافية تمنع الالتصاق بالكبسولات
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(scrollState)
                 .padding(horizontal = 20.dp)
-                .padding(top = 80.dp, bottom = 32.dp),
+                .padding(top = 130.dp, bottom = 32.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .defaultMinSize(minHeight = minScreenHeight - 112.dp),
-                verticalArrangement = Arrangement.Center,
+                    .defaultMinSize(minHeight = minScreenHeight - 162.dp),
+                verticalArrangement = Arrangement.spacedBy(20.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // SECTION 1: Custom Wallpaper Background Integration Card
+                
+                // HERO CARD: تظهر المعاينة الحيّة التفاعلية للكيبورد فقط عند رفع صورة مخصصة
+                if (hasCustomBg) {
+                    Card(
+                        shape = RoundedCornerShape(28.dp),
+                        colors = CardDefaults.cardColors(containerColor = AppleCarbon),
+                        border = BorderStroke(1.dp, AppleSteel),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("settings_card_preview")
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(20.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = Icons.Default.Palette,
+                                        contentDescription = "معاينة الكيبورد",
+                                        tint = ApplePorcelain,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = "المعاينة الحيّة التفاعلية",
+                                        fontSize = 15.sp,
+                                        fontFamily = ThmanyahSansFontFamily,
+                                        fontWeight = FontWeight.Bold,
+                                        color = ApplePorcelain
+                                    )
+                                }
+                                Text(
+                                    text = "كما يظهر على كيبوردكِ",
+                                    fontSize = 11.sp,
+                                    fontFamily = ThmanyahSansFontFamily,
+                                    color = AppleAsh
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(14.dp))
+
+                            Box(
+                                modifier = Modifier.fillMaxWidth(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                KeyboardLivePreview(
+                                    bgBase64 = bgBase64,
+                                    themeName = currentTheme,
+                                    opacity = currentOpacity,
+                                    blur = currentBlur,
+                                    modifier = Modifier.testTag("live_preview")
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // SECTION 1: بطاقة الخلفية المخصصة والشفافية مع أزرار رفع حديثة وسلايدر فخم
                 Card(
                     shape = RoundedCornerShape(28.dp),
                     colors = CardDefaults.cardColors(containerColor = AppleCarbon),
@@ -136,129 +206,87 @@ fun CustomizationScreen(
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Image,
-                                contentDescription = "صورة الخلفية",
-                                tint = ApplePorcelain,
-                                modifier = Modifier.size(22.dp)
-                            )
-                            Spacer(modifier = Modifier.width(10.dp))
-                            Text(
-                                text = "خلفية الكيبورد المخصصة",
-                                fontSize = 16.sp,
-                                fontFamily = ThmanyahSansFontFamily,
-                                fontWeight = FontWeight.Bold,
-                                color = ApplePorcelain
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(18.dp))
-
-                        Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                            horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            val selectBgInteraction = remember { MutableInteractionSource() }
-                            Button(
-                                onClick = {
-                                    pickMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-                                },
-                                shape = RoundedCornerShape(170.dp),
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .height(48.dp)
-                                    .appleElasticPinch(selectBgInteraction)
-                                    .testTag("btn_select_bg"),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = AppleWhite,
-                                    contentColor = AppleObsidian
-                                ),
-                                interactionSource = selectBgInteraction
-                            ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.Image,
+                                    contentDescription = "صورة الخلفية",
+                                    tint = ApplePorcelain,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
                                 Text(
-                                    text = "اختيار صورة مخصصة ❦",
-                                    fontSize = 14.sp,
+                                    text = "خلفية الكيبورد المخصصة",
+                                    fontSize = 15.sp,
                                     fontFamily = ThmanyahSansFontFamily,
                                     fontWeight = FontWeight.Bold,
-                                    color = AppleObsidian
+                                    color = ApplePorcelain
                                 )
                             }
-
-                            // Clear Background Button
-                            if (hasCustomBg) {
-                                val clearBgInteraction = remember { MutableInteractionSource() }
-                                OutlinedButton(
-                                    onClick = onClearBg,
-                                    shape = RoundedCornerShape(170.dp),
+                            
+                            // أدوات تحكم صغيرة وأنيقة للغاية (أيقونة رفع حديثة بجانب أيقونة الحذف)
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                val uploadInteraction = remember { MutableInteractionSource() }
+                                Box(
                                     modifier = Modifier
-                                        .height(48.dp)
-                                        .width(60.dp)
-                                        .appleElasticPinch(clearBgInteraction)
-                                        .testTag("btn_clear_bg"),
-                                    border = BorderStroke(1.dp, Color(0xFFEF4444).copy(alpha = 0.5f)),
-                                    colors = ButtonDefaults.outlinedButtonColors(
-                                        contentColor = Color(0xFFEF4444)
-                                    ),
-                                    contentPadding = PaddingValues(0.dp),
-                                    interactionSource = clearBgInteraction
+                                        .size(38.dp)
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(AppleSteel.copy(alpha = 0.5f))
+                                        .border(1.dp, AppleSteel, RoundedCornerShape(12.dp))
+                                        .appleElasticPinch(uploadInteraction)
+                                        .clickable(
+                                            interactionSource = uploadInteraction,
+                                            indication = null,
+                                            onClick = {
+                                                pickMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                                            }
+                                        )
+                                        .testTag("btn_select_bg"),
+                                    contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Default.Delete,
-                                        contentDescription = "مسح الخلفية",
-                                        tint = Color(0xFFEF4444),
-                                        modifier = Modifier.size(20.dp)
+                                        imageVector = Icons.Default.CloudUpload,
+                                        contentDescription = "رفع خلفية مخصصة",
+                                        tint = ApplePorcelain,
+                                        modifier = Modifier.size(18.dp)
                                     )
+                                }
+
+                                if (hasCustomBg) {
+                                    val deleteInteraction = remember { MutableInteractionSource() }
+                                    Box(
+                                        modifier = Modifier
+                                            .size(38.dp)
+                                            .clip(RoundedCornerShape(12.dp))
+                                            .background(Color(0xFFEF4444).copy(alpha = 0.15f))
+                                            .border(1.dp, Color(0xFFEF4444).copy(alpha = 0.3f), RoundedCornerShape(12.dp))
+                                            .appleElasticPinch(deleteInteraction)
+                                            .clickable(
+                                                interactionSource = deleteInteraction,
+                                                indication = null,
+                                                onClick = onClearBg
+                                            )
+                                            .testTag("btn_clear_bg"),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Delete,
+                                            contentDescription = "مسح الخلفية",
+                                            tint = Color(0xFFEF4444),
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
                                 }
                             }
                         }
 
                         if (hasCustomBg) {
-                            Spacer(modifier = Modifier.height(22.dp))
-
-                            // ===== LIVE PREVIEW =====
-                            // معاينة حيّة مصغّرة: نفس الطبقة الزجاجية ونفس ألوان
-                            // الكيبورد، فتظهر النتيجة كما ستكون عليه بالضبط.
-                            Column(modifier = Modifier.fillMaxWidth()) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(
-                                        text = "معاينة حيّة",
-                                        fontSize = 14.sp,
-                                        fontFamily = ThmanyahSansFontFamily,
-                                        fontWeight = FontWeight.Bold,
-                                        color = ApplePorcelain
-                                    )
-                                    Text(
-                                        text = "كما ستظهر على كيبوردك",
-                                        fontSize = 11.sp,
-                                        fontFamily = ThmanyahSansFontFamily,
-                                        color = AppleAsh
-                                    )
-                                }
-
-                                Spacer(modifier = Modifier.height(10.dp))
-
-                                Box(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    KeyboardLivePreview(
-                                        bgBase64 = bgBase64,
-                                        themeName = currentTheme,
-                                        opacity = currentOpacity,
-                                        blur = currentBlur,
-                                        modifier = Modifier.testTag("live_preview")
-                                    )
-                                }
-                            }
-
-                            Spacer(modifier = Modifier.height(20.dp))
+                            Spacer(modifier = Modifier.height(24.dp))
 
                             // BACKGROUND OPACITY SLIDER
                             Column {
@@ -269,29 +297,24 @@ fun CustomizationScreen(
                                 ) {
                                     Text(
                                         text = "مدى شفافية وتعتيم أزرار اللوحة",
-                                        fontSize = 14.sp,
+                                        fontSize = 13.sp,
                                         fontFamily = ThmanyahSansFontFamily,
                                         fontWeight = FontWeight.Bold,
                                         color = ApplePorcelain
                                     )
                                     Text(
                                         text = "${(currentOpacity * 100).toInt()}%",
-                                        fontSize = 14.sp,
+                                        fontSize = 13.sp,
                                         fontFamily = ThmanyahSansFontFamily,
                                         color = AppleWhite,
                                         fontWeight = FontWeight.Bold
                                     )
                                 }
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Slider(
+                                Spacer(modifier = Modifier.height(10.dp))
+                                PremiumSlider(
                                     value = currentOpacity,
                                     onValueChange = onOpacityChanged,
                                     valueRange = 0.05f..0.99f,
-                                    colors = SliderDefaults.colors(
-                                        thumbColor = AppleWhite,
-                                        activeTrackColor = AppleWhite,
-                                        inactiveTrackColor = AppleSteel
-                                    ),
                                     modifier = Modifier.testTag("slider_opacity")
                                 )
                                 Spacer(modifier = Modifier.height(6.dp))
@@ -303,7 +326,7 @@ fun CustomizationScreen(
                                 )
                             }
 
-                            Spacer(modifier = Modifier.height(18.dp))
+                            Spacer(modifier = Modifier.height(20.dp))
 
                             // BACKGROUND BLUR SLIDER
                             Column {
@@ -314,40 +337,42 @@ fun CustomizationScreen(
                                 ) {
                                     Text(
                                         text = "مدى ضبابية الخلفية وغبشها (Blur)",
-                                        fontSize = 14.sp,
+                                        fontSize = 13.sp,
                                         fontFamily = ThmanyahSansFontFamily,
                                         fontWeight = FontWeight.Bold,
                                         color = ApplePorcelain
                                     )
                                     Text(
                                         text = "${currentBlur}px",
-                                        fontSize = 14.sp,
+                                        fontSize = 13.sp,
                                         fontFamily = ThmanyahSansFontFamily,
                                         color = AppleWhite,
                                         fontWeight = FontWeight.Bold
                                     )
                                 }
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Slider(
+                                Spacer(modifier = Modifier.height(10.dp))
+                                PremiumSlider(
                                     value = currentBlur.toFloat(),
                                     onValueChange = { onBlurChanged(it.toInt()) },
                                     valueRange = 0f..25f,
-                                    steps = 25,
-                                    colors = SliderDefaults.colors(
-                                        thumbColor = AppleWhite,
-                                        activeTrackColor = AppleWhite,
-                                        inactiveTrackColor = AppleSteel
-                                    ),
                                     modifier = Modifier.testTag("slider_blur")
                                 )
                             }
+                        } else {
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(
+                                text = "لإضافة صورة مخصصة خلف أزرار الكيبورد، اضغطي على زر الرفع في الأعلى ❦",
+                                fontSize = 12.sp,
+                                fontFamily = ThmanyahSansFontFamily,
+                                color = AppleAsh,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.fillMaxWidth()
+                            )
                         }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(20.dp))
-
-                // SECTION 2: Haptic Feedback Controls
+                // SECTION 2: اهتزاز مفاتيح الكيبورد مع سلايدر فخم
                 Card(
                     shape = RoundedCornerShape(28.dp),
                     colors = CardDefaults.cardColors(containerColor = AppleCarbon),
@@ -365,19 +390,19 @@ fun CustomizationScreen(
                                 imageVector = Icons.Default.Vibration,
                                 contentDescription = "الاهتزاز",
                                 tint = ApplePorcelain,
-                                modifier = Modifier.size(22.dp)
+                                modifier = Modifier.size(20.dp)
                             )
-                            Spacer(modifier = Modifier.width(10.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
                             Text(
                                 text = "اهتزاز مفاتيح الكيبورد",
-                                fontSize = 16.sp,
+                                fontSize = 15.sp,
                                 fontFamily = ThmanyahSansFontFamily,
                                 fontWeight = FontWeight.Bold,
                                 color = ApplePorcelain
                             )
                         }
 
-                        Spacer(modifier = Modifier.height(18.dp))
+                        Spacer(modifier = Modifier.height(20.dp))
 
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -386,37 +411,31 @@ fun CustomizationScreen(
                         ) {
                             Text(
                                 text = "شدة الاهتزاز عند النقر والكتابة",
-                                fontSize = 14.sp,
+                                fontSize = 13.sp,
                                 fontFamily = ThmanyahSansFontFamily,
                                 fontWeight = FontWeight.Bold,
                                 color = ApplePorcelain
                             )
                             Text(
                                 text = if (hapticIntensity == 0) "إيقاف الاهتزاز" else "${hapticIntensity}ms",
-                                fontSize = 14.sp,
+                                fontSize = 13.sp,
                                 fontFamily = ThmanyahSansFontFamily,
                                 color = AppleWhite,
                                 fontWeight = FontWeight.Bold
                             )
                         }
 
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Slider(
+                        Spacer(modifier = Modifier.height(10.dp))
+                        PremiumSlider(
                             value = hapticIntensity.toFloat(),
                             onValueChange = { onHapticChanged(it.toInt()) },
                             valueRange = 0f..100f,
-                            steps = 20,
-                            colors = SliderDefaults.colors(
-                                thumbColor = AppleWhite,
-                                activeTrackColor = AppleWhite,
-                                inactiveTrackColor = AppleSteel
-                            ),
                             modifier = Modifier.testTag("slider_haptic")
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(36.dp))
+                Spacer(modifier = Modifier.height(20.dp))
 
                 // Literary Signature Footer
                 Text(
@@ -430,7 +449,7 @@ fun CustomizationScreen(
             }
         }
 
-        // FLOATING TOP CAPSULE HEADER SYSTEM (نظام الكبسولات العلوية الفاخرة)
+        // FLOATING TOP CAPSULE HEADER SYSTEM (نظام كبسولات علوية فاخرة غير شفافة لحماية تداخل النص)
         CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
             Row(
                 modifier = Modifier
@@ -440,16 +459,16 @@ fun CustomizationScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Title/Brand Floating Capsule (First -> Right side)
+                // Title/Brand Floating Capsule
                 Box(
                     modifier = Modifier
                         .height(44.dp)
-                        .clip(RoundedCornerShape(20.dp))
-                        .background(AppleGraphite.copy(alpha = 0.94f))
+                        .clip(RoundedCornerShape(22.dp))
+                        .background(Color(0xFF1D1D1F)) // Solid Apple Carbon, zero transparency
                         .border(
                             width = 1.dp,
                             color = AppleSteel,
-                            shape = RoundedCornerShape(20.dp)
+                            shape = RoundedCornerShape(22.dp)
                         )
                         .padding(horizontal = 20.dp),
                     contentAlignment = Alignment.Center
@@ -459,19 +478,19 @@ fun CustomizationScreen(
                         style = MaterialTheme.typography.titleMedium.copy(
                             fontFamily = ThmanyahSerifDisplayFontFamily,
                             fontWeight = FontWeight.Black,
-                            fontSize = 15.sp
+                            fontSize = 14.sp
                         ),
                         color = ApplePorcelain
                     )
                 }
 
-                // Standalone circular floating capsule back button (Second -> Left side)
+                // Standalone circular floating capsule back button
                 val backInteraction = remember { MutableInteractionSource() }
                 Box(
                     modifier = Modifier
                         .size(44.dp)
                         .clip(CircleShape)
-                        .background(AppleGraphite.copy(alpha = 0.94f))
+                        .background(Color(0xFF1D1D1F)) // Solid Apple Carbon, zero transparency
                         .border(
                             width = 1.dp,
                             color = AppleSteel,
@@ -499,11 +518,99 @@ fun CustomizationScreen(
 }
 
 // =============================================================================
-//  المعاينة الحيّة المصغّرة
+//  سلايدر فاخر مخصص بالكامل (Premium Custom Slider Component)
 //
-//  إطار بحجم شاشة الجهاز نفسه (نفس النسب) بداخله نفس الطبقة الزجاجية المستخدمة
-//  على الكيبورد، وفوقها صفوف مفاتيح مصغّرة بألوان الثيم الحقيقي — فما تراه
-//  الكاتبة هنا هو ما ستراه على الكيبورد بالضبط.
+//  يستبدل السلايدرات القديمة البسيطة بتصميم كبسولي حديث ذو حافة محددة
+//  ومؤشر منزلق فخم يعطي تجربة مستخدم تضاهي أفخم أنظمة التشغيل العالمية.
+// =============================================================================
+@Composable
+fun PremiumSlider(
+    value: Float,
+    onValueChange: (Float) -> Unit,
+    modifier: Modifier = Modifier,
+    valueRange: ClosedFloatingPointRange<Float> = 0f..1f,
+) {
+    val density = LocalDensity.current
+    var widthPx by remember { mutableStateOf(0) }
+
+    // تثبيت اتجاه LTR الصارم للسلايدر لضمان أن السحب لليمين يقدّم ويزيد القيمة دائماً
+    CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+        Box(
+            modifier = modifier
+                .fillMaxWidth()
+                .height(28.dp)
+                .clip(RoundedCornerShape(14.dp))
+                .background(AppleSteel.copy(alpha = 0.35f))
+                .border(1.dp, AppleSteel.copy(alpha = 0.6f), RoundedCornerShape(14.dp))
+                .onGloballyPositioned { widthPx = it.size.width }
+                .pointerInput(valueRange) {
+                    detectTapGestures { offset ->
+                        if (widthPx > 0) {
+                            val fraction = (offset.x / widthPx).coerceIn(0f, 1f)
+                            val newValue = valueRange.start + fraction * (valueRange.endInclusive - valueRange.start)
+                            onValueChange(newValue)
+                        }
+                    }
+                }
+                .pointerInput(valueRange) {
+                    detectDragGestures(
+                        onDragStart = { offset ->
+                            if (widthPx > 0) {
+                                val fraction = (offset.x / widthPx).coerceIn(0f, 1f)
+                                val newValue = valueRange.start + fraction * (valueRange.endInclusive - valueRange.start)
+                                onValueChange(newValue)
+                            }
+                        },
+                        onDrag = { change, _ ->
+                            change.consume() // استهلاك الحدث حتى لا يقاطعه التمرير الرأسي للشاشة
+                            if (widthPx > 0) {
+                                val fraction = (change.position.x / widthPx).coerceIn(0f, 1f)
+                                val newValue = valueRange.start + fraction * (valueRange.endInclusive - valueRange.start)
+                                onValueChange(newValue)
+                            }
+                        }
+                    )
+                }
+        ) {
+            val fraction = ((value - valueRange.start) / (valueRange.endInclusive - valueRange.start)).coerceIn(0f, 1f)
+            
+            // Active filled progress track
+            Box(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .fillMaxWidth(if (fraction > 0f) fraction else 0.0001f)
+                    .background(
+                        brush = Brush.horizontalGradient(
+                            colors = listOf(
+                                AppleWhite.copy(alpha = 0.12f),
+                                AppleWhite.copy(alpha = 0.40f)
+                            )
+                        )
+                    )
+            )
+            
+            // Premium Sliding Capsule Thumb/Handle
+            val thumbWidth = 14.dp
+            val maxOffsetDp = with(density) { (widthPx).toDp() } - thumbWidth
+            val offsetDp = (fraction * maxOffsetDp.value).dp
+            
+            Box(
+                modifier = Modifier
+                    .offset(x = offsetDp)
+                    .width(thumbWidth)
+                    .fillMaxHeight()
+                    .padding(2.dp)
+                    .background(AppleWhite, RoundedCornerShape(12.dp))
+            )
+        }
+    }
+}
+
+// =============================================================================
+//  المعاينة الحيّة الأصلية للكيبورد الحقيقي (Authentic Keyboard Live Preview)
+//
+//  استدعاء الكود الحقيقي والتصميم الأصلي للكيبورد بالكامل بجميع أزراره
+//  وزجاجه وترتيبه وتدرجاته، مع تحسين استهلاك الذاكرة وتثبيت الاتجاه LTR.
 // =============================================================================
 @Composable
 private fun KeyboardLivePreview(
@@ -514,149 +621,92 @@ private fun KeyboardLivePreview(
     modifier: Modifier = Modifier
 ) {
     val palette = rememberThemePalette(themeName)
-    val source = remember(bgBase64) { decodeBase64Bitmap(bgBase64) }
-    val configuration = LocalConfiguration.current
-    val aspect = if (configuration.screenHeightDp > 0) {
-        configuration.screenWidthDp.toFloat() / configuration.screenHeightDp.toFloat()
-    } else {
-        0.5f
-    }
-    val shape = RoundedCornerShape(12.dp)
-    val keyShape = RoundedCornerShape(2.dp)
+    val bgBitmap = remember(bgBase64) { decodeBase64Bitmap(bgBase64) }
 
-    // نفس محرّك الكيبورد بالحرف، لكن بحجم المعاينة: نفس النسب والتمويه والحدّ الرفيع.
-    val density = androidx.compose.ui.platform.LocalDensity.current
-    val previewWidthPx = remember(density) { with(density) { 104.dp.roundToPx() } }
-    val previewHeightPx = remember(previewWidthPx, aspect) {
-        (previewWidthPx / aspect.coerceAtLeast(0.05f)).roundToInt().coerceAtLeast(1)
-    }
-    val screenSizePx = rememberScreenSizePx()
-    val blurForPreview = remember(blur, previewWidthPx, screenSizePx.first) {
-        if (screenSizePx.first <= 0) 0 else {
-            (blur.toFloat() * previewWidthPx / screenSizePx.first).roundToInt().coerceIn(0, blur)
-        }
-    }
+    // Reference dimensions: Standard tablet/phone landscape display aspect ratio (840x380 dp)
+    val refWidthDp = 840.dp
+    val refHeightDp = 380.dp
+    val density = LocalDensity.current
+
+    val targetWPx = with(density) { refWidthDp.roundToPx() }
+    val targetHPx = with(density) { refHeightDp.roundToPx() }
+
+    // أبعاد خفيفة وسريعة للمعاينة تحمي من نفاد الذاكرة (OutOfMemoryError) على جميع الأجهزة
+    val previewTargetWidthPx = 640
+    val previewTargetHeightPx = 290
+
     val glassImage = rememberGlassImage(
-        sourceBitmap = source,
-        sourceKey = "preview-${bgBase64.length}-${bgBase64.hashCode()}",
-        targetWidthPx = previewWidthPx,
-        targetHeightPx = previewHeightPx,
-        blurRadiusPx = blurForPreview
+        sourceBitmap = bgBitmap,
+        sourceKey = "preview-real-${bgBase64.length}-${bgBase64.hashCode()}",
+        targetWidthPx = previewTargetWidthPx,
+        targetHeightPx = previewTargetHeightPx,
+        blurRadiusPx = blur
     )
-    var previewOrigin by remember { mutableStateOf(Offset.Zero) }
-    val sampler = remember(glassImage, opacity, previewOrigin) {
+
+    // تتبع الإحداثيات الديناميكية بدقة متناهية لمنع انهيار الرسم أو تلاشي الزجاج داخل بطاقة المعاينة
+    var containerOriginInWindow by remember { mutableStateOf(Offset.Zero) }
+
+    val sampler = remember(glassImage, opacity, targetWPx, targetHPx, containerOriginInWindow) {
         glassImage?.let {
             GlassSampler(
                 image = it,
-                pxPerNodePx = 1f,
-                originInWindow = previewOrigin,
+                containerWidthPx = targetWPx,
+                containerHeightPx = targetHPx,
+                originInWindow = containerOriginInWindow,
                 opacity = opacity
             )
         }
     }
-    val previewTint = GlassMath.surfaceTintAlpha(opacity)
 
-    CompositionLocalProvider(LocalGlassSampler provides sampler) {
-    Box(
-        modifier = modifier
-            .width(104.dp)
-            .aspectRatio(aspect)
-            .onGloballyPositioned { previewOrigin = it.positionInWindow() }
-            .clip(shape)
-            .border(1.dp, Color.White.copy(alpha = 0.16f), shape)
-    ) {
-        // الصورة واضحة، والتمويه داخل المفاتيح فقط — كما على الكيبورد تماماً.
-        GlassWallpaper(bitmap = source, modifier = Modifier.fillMaxSize())
+    var currentPreviewMode by remember { mutableStateOf(KeyboardMode.ARABIC) }
 
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(6.dp),
-            verticalArrangement = Arrangement.spacedBy(3.dp)
+    // حماية المعاينة من انعكاس إحداثيات RTL في الهواتف العربية
+    CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+        Box(
+            modifier = modifier
+                .fillMaxWidth()
+                .aspectRatio(840f / 380f)
+                .clip(RoundedCornerShape(14.dp))
+                .border(1.dp, Color.White.copy(alpha = 0.16f), RoundedCornerShape(14.dp))
+                .background(palette.canvasBackground)
         ) {
-            // الشريط العلوي
-            Box(
-                modifier = Modifier
-                    .weight(0.12f)
-                    .fillMaxWidth()
-                    .clip(keyShape)
-                    .glassSurface(
-                        sampler = LocalGlassSampler.current,
-                        fillColor = palette.surfaceBackground,
-                        tintAlpha = previewTint,
-                        radius = 4.dp,
-                        borderColor = palette.keycapBorder,
-                        borderWidth = 0.5.dp,
-                        rimWidth = 0.5.dp
-                    )
-            )
-
-            // صفوف المفاتيح الثلاثة
-            MiniKeyRow(keys = 10, palette = palette, shape = keyShape, weight = 0.24f)
-            MiniKeyRow(keys = 9, palette = palette, shape = keyShape, weight = 0.24f)
-            MiniKeyRow(keys = 7, palette = palette, shape = keyShape, weight = 0.24f)
-
-            // صف المسافة والإدخال
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(0.16f),
-                horizontalArrangement = Arrangement.spacedBy(2.dp),
-                verticalAlignment = Alignment.CenterVertically
+            BoxWithConstraints(
+                modifier = Modifier.fillMaxSize()
             ) {
-                MiniKey(palette = palette, shape = keyShape, modifier = Modifier.weight(1f))
-                MiniKey(palette = palette, shape = keyShape, modifier = Modifier.weight(4f))
-                MiniKey(palette = palette, shape = keyShape, modifier = Modifier.weight(1f), accent = true)
+                val widthPx = constraints.maxWidth
+                val heightPx = constraints.maxHeight
+                val scale = if (targetWPx > 0) widthPx.toFloat() / targetWPx.toFloat() else 0.4f
+
+                Box(
+                    modifier = Modifier.layout { measurable, _ ->
+                        val placeable = measurable.measure(
+                            Constraints.fixed(targetWPx, targetHPx)
+                        )
+                        layout(widthPx, heightPx) {
+                            placeable.placeWithLayer(0, 0) {
+                                scaleX = scale
+                                scaleY = scale
+                                transformOrigin = TransformOrigin(0f, 0f)
+                            }
+                        }
+                    }
+                ) {
+                    KeyboardFullDesign(
+                        palette = palette,
+                        opacity = opacity,
+                        bgBitmap = bgBitmap,
+                        glassSampler = sampler,
+                        currentMode = currentPreviewMode,
+                        onModeChange = { currentPreviewMode = it },
+                        isToolbarVisible = false,
+                        isConnected = true,
+                        tabletIp = "192.168.43.68:8080",
+                        onContainerPositioned = { _, origin ->
+                            containerOriginInWindow = origin
+                        }
+                    )
+                }
             }
         }
     }
-    }
-}
-
-@Composable
-private fun ColumnScope.MiniKeyRow(
-    keys: Int,
-    palette: ThemePalette,
-    shape: RoundedCornerShape,
-    weight: Float
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .weight(weight),
-        horizontalArrangement = Arrangement.spacedBy(2.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        repeat(keys) {
-            MiniKey(palette = palette, shape = shape, modifier = Modifier.weight(1f))
-        }
-    }
-}
-
-@Composable
-private fun MiniKey(
-    palette: ThemePalette,
-    shape: RoundedCornerShape,
-    modifier: Modifier = Modifier,
-    accent: Boolean = false
-) {
-    val sampler = LocalGlassSampler.current
-    Box(
-        modifier = modifier
-            .fillMaxHeight()
-            .clip(shape)
-            .glassSurface(
-                sampler = sampler,
-                fillColor = if (accent) palette.accentColor else palette.letterKeycapBg,
-                tintAlpha = if (accent) {
-                    sampler?.accentTintAlpha() ?: 1f
-                } else {
-                    GlassMath.surfaceTintAlpha(sampler?.opacity ?: 1f)
-                },
-                radius = 2.dp,
-                borderColor = palette.keycapBorder.copy(alpha = 0.30f),
-                borderWidth = 0.5.dp,
-                rimWidth = 0.5.dp
-            )
-    )
 }
