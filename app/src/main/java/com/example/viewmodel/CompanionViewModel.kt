@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
 import java.io.InputStream
 
@@ -162,6 +163,14 @@ class CompanionViewModel(application: Application) : AndroidViewModel(applicatio
     fun sendCommand(action: String, extraParams: String = "") {
         viewModelScope.launch(Dispatchers.IO) {
             client.sendCommand(action, extraParams)
+        }
+    }
+
+    /** Large paste from the phone clipboard: POST/JSON, never a URL. */
+    fun sendPasteText(text: String, onResult: (Boolean) -> Unit = {}) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val ok = client.sendPasteText(text)
+            withContext(Dispatchers.Main) { onResult(ok) }
         }
     }
 

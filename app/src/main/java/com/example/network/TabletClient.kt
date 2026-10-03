@@ -13,7 +13,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.ConnectionPool
 import okhttp3.OkHttpClient
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.IOException
 import java.util.concurrent.TimeUnit
 
@@ -106,6 +108,52 @@ class TabletClient(private val prefs: PreferencesManager) {
             }
         } catch (e: Exception) {
             Log.e("TabletClient", "Failed to send command $action: ${e.message}")
+            false
+        }
+    }
+
+    /**
+     * Sends a large text payload (a full novel excerpt, 30k+ characters) with a
+     * POST/JSON body instead of a GET query string: no URL length limits, exact
+     * UTF-8 bytes, and the tablet writes it at the caret in one piece.
+     */
+    fun sendPasteText(text: String): Boolean {
+        val ip = prefs.tabletIp
+        if (ip.isEmpty() || text.isEmpty()) return false
+
+        val pin = prefs.tabletPin
+        val host = ip.trim().removeSuffix("/").let { if (it.startsWith("http")) it else "http://$it" }
+        val url = host.removeSuffix("/") + "/api/command"
+
+        // JSONObject escapes quotes/newlines in Arabic text correctly.
+        val bodyJson = org.json.JSONObject().apply {
+            put("action", "paste")
+            put("text", text)
+            if (pin.isNotEmpty()) put("pin", pin)
+        }.toString()
+
+        val request = Request.Builder()
+            .url(url)
+            .post(bodyJson.toRequestBody("application/json; charset=utf-8".toMediaType()))
+            .apply {
+                if (pin.isNotEmpty()) {
+                    header("X-Tablet-PIN", pin)
+                    header("pin", pin)
+                }
+            }
+            .build()
+
+        return try {
+            client.newCall(request).execute().use { response ->
+                if (response.isSuccessful) {
+                    _isConnected.value = true
+                    true
+                } else {
+                    false
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("TabletClient", "Failed to paste text: ${e.message}")
             false
         }
     }

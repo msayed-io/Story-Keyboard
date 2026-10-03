@@ -157,6 +157,9 @@ class MainActivity : ComponentActivity() {
                                     onSendCommand = { action, extra ->
                                         viewModel.sendCommand(action, extra)
                                     },
+                                    onSendPasteText = { text, onResult ->
+                                        viewModel.sendPasteText(text, onResult)
+                                    },
                                     onBack = { currentScreen = AppScreen.HOME }
                                 )
                             }

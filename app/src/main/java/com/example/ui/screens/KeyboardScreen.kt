@@ -105,6 +105,7 @@ fun KeyboardScreen(
     bgBase64: String,
     configuredVibration: Int,
     onSendCommand: (String, String) -> Unit,
+    onSendPasteText: (String, (Boolean) -> Unit) -> Unit = { _, _ -> },
     onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -121,7 +122,25 @@ fun KeyboardScreen(
         onDispose { onSendCommand("mouse_mode", "enabled=0") }
     }
     var pressedKeyLabel by remember { mutableStateOf<String?>(null) }
+    var pasteFeedback by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
+
+    // Paste has two possible sources: this phone's clipboard or the tablet's own.
+    val clipboardManager = remember {
+        context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+    }
+    fun phoneClipboardText(): String {
+        val clip = clipboardManager.primaryClip ?: return ""
+        if (clip.itemCount == 0) return ""
+        return clip.getItemAt(0).coerceToText(context).toString()
+    }
+    fun flashPasteFeedback(message: String) {
+        pasteFeedback = message
+        scope.launch {
+            delay(1800)
+            if (pasteFeedback == message) pasteFeedback = null
+        }
+    }
 
     // Intercept hardware Back button
     BackHandler {
@@ -355,7 +374,40 @@ fun KeyboardScreen(
             // =============================================================
             // PERMANENT APPLE-GRADE WRITER SHORTCUTS TOOLBAR (Always Visible)
             // =============================================================
-            WriterToolsRow(palette, handleKeyTap)
+            pasteFeedback?.let { message ->
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 3.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = message,
+                        fontFamily = ThmanyahSansFontFamily,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = palette.accentColor
+                    )
+                }
+            }
+            WriterToolsRow(
+                palette = palette,
+                onKey = handleKeyTap,
+                onPasteFromPhone = {
+                    val text = phoneClipboardText()
+                    if (text.isEmpty()) {
+                        flashPasteFeedback("محفظة الهاتف فارغة")
+                    } else {
+                        onSendPasteText(text) { ok ->
+                            flashPasteFeedback(if (ok) "تم لصق ${text.length} حرفاً ✓" else "تعذّر الإرسال")
+                        }
+                    }
+                },
+                onPasteFromTablet = {
+                    handleKeyTap("لصق", "shortcut", "cmd=paste_local")
+                    flashPasteFeedback("جارٍ اللصق من محفظة التابلت…")
+                }
+            )
 
             Spacer(modifier = Modifier.height(4.dp))
 
@@ -467,8 +519,11 @@ private data class WriterToolItem(
 @Composable
 private fun WriterToolsRow(
     palette: ThemePalette,
-    onKey: (String, String, String) -> Unit
+    onKey: (String, String, String) -> Unit,
+    onPasteFromPhone: () -> Unit,
+    onPasteFromTablet: () -> Unit
 ) {
+    var isPasteMenuOpen by remember { mutableStateOf(false) }
     val items = remember {
         listOf(
             WriterToolItem("تراجع", Icons.AutoMirrored.Filled.Undo, "shortcut", "cmd=undo"),
@@ -489,12 +544,57 @@ private fun WriterToolsRow(
         verticalAlignment = Alignment.CenterVertically
     ) {
         items.forEach { item ->
-            WriterToolButton(
-                item = item,
-                palette = palette,
-                modifier = Modifier.weight(1f),
-                onClick = { onKey(item.label, item.action, item.params) }
-            )
+            val isPaste = item.action == "shortcut" && item.params == "cmd=paste"
+            Box(modifier = Modifier.weight(1f)) {
+                WriterToolButton(
+                    item = item,
+                    palette = palette,
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = {
+                        if (isPaste) isPasteMenuOpen = true
+                        else onKey(item.label, item.action, item.params)
+                    }
+                )
+                // Small, on-identity dropdown: exactly two clear choices.
+                androidx.compose.material3.DropdownMenu(
+                    expanded = isPasteMenuOpen,
+                    onDismissRequest = { isPasteMenuOpen = false },
+                    containerColor = palette.surfaceBackground,
+                    shape = RoundedCornerShape(14.dp),
+                    modifier = Modifier.width(148.dp)
+                ) {
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                "محفظة الهاتف",
+                                fontFamily = ThmanyahSansFontFamily,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = palette.keyGlyphColor
+                            )
+                        },
+                        onClick = {
+                            isPasteMenuOpen = false
+                            onPasteFromPhone()
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                "محفظة التابلت",
+                                fontFamily = ThmanyahSansFontFamily,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = palette.keyGlyphColor
+                            )
+                        },
+                        onClick = {
+                            isPasteMenuOpen = false
+                            onPasteFromTablet()
+                        }
+                    )
+                }
+            }
         }
     }
 }
