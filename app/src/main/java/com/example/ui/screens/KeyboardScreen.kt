@@ -371,35 +371,58 @@ fun KeyboardScreen(
 
             Spacer(modifier = Modifier.height(4.dp))
 
-            // =============================================================
-            // PERMANENT APPLE-GRADE WRITER SHORTCUTS TOOLBAR (Always Visible)
-            // =============================================================
+            // Floating status chip: an overlay above the writer bar, so the
+            // sentence can never be squeezed or cut at the screen edge.
             pasteFeedback?.let { message ->
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(bottom = 3.dp),
+                        .height(0.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = message,
-                        fontFamily = ThmanyahSansFontFamily,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = palette.accentColor
-                    )
+                    Box(
+                        modifier = Modifier
+                            .offset(y = (-30).dp)
+                            .background(
+                                color = palette.surfaceBackground.copy(alpha = 0.96f),
+                                shape = RoundedCornerShape(50)
+                            )
+                            .border(
+                                width = 1.dp,
+                                color = palette.accentColor.copy(alpha = 0.45f),
+                                shape = RoundedCornerShape(50)
+                            )
+                            .padding(horizontal = 14.dp, vertical = 5.dp)
+                    ) {
+                        Text(
+                            text = message,
+                            fontFamily = ThmanyahSansFontFamily,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = palette.accentColor
+                        )
+                    }
                 }
             }
+
+            // =============================================================
+            // PERMANENT APPLE-GRADE WRITER SHORTCUTS TOOLBAR (Always Visible)
+            // =============================================================
             WriterToolsRow(
                 palette = palette,
                 onKey = handleKeyTap,
                 onPasteFromPhone = {
                     val text = phoneClipboardText()
-                    if (text.isEmpty()) {
+                    if (text.trim().isEmpty()) {
                         flashPasteFeedback("محفظة الهاتف فارغة")
+                    } else if (text.length > 400_000) {
+                        flashPasteFeedback("النص أكبر من الحد المسموح")
                     } else {
+                        flashPasteFeedback("جارٍ الإرسال…")
                         onSendPasteText(text) { ok ->
-                            flashPasteFeedback(if (ok) "تم لصق ${text.length} حرفاً ✓" else "تعذّر الإرسال")
+                            flashPasteFeedback(
+                                if (ok) "تم لصق ${text.length} حرفاً ✓" else "تعذّر الإرسال — تأكدي من الاتصال"
+                            )
                         }
                     }
                 },
@@ -555,44 +578,48 @@ private fun WriterToolsRow(
                         else onKey(item.label, item.action, item.params)
                     }
                 )
-                // Small, on-identity dropdown: exactly two clear choices.
-                androidx.compose.material3.DropdownMenu(
-                    expanded = isPasteMenuOpen,
-                    onDismissRequest = { isPasteMenuOpen = false },
-                    containerColor = palette.surfaceBackground,
-                    shape = RoundedCornerShape(14.dp),
-                    modifier = Modifier.width(148.dp)
-                ) {
-                    DropdownMenuItem(
-                        text = {
-                            Text(
-                                "محفظة الهاتف",
-                                fontFamily = ThmanyahSansFontFamily,
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = palette.keyGlyphColor
-                            )
-                        },
-                        onClick = {
-                            isPasteMenuOpen = false
-                            onPasteFromPhone()
-                        }
-                    )
-                    DropdownMenuItem(
-                        text = {
-                            Text(
-                                "محفظة التابلت",
-                                fontFamily = ThmanyahSansFontFamily,
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = palette.keyGlyphColor
-                            )
-                        },
-                        onClick = {
-                            isPasteMenuOpen = false
-                            onPasteFromTablet()
-                        }
-                    )
+                // EXACTLY ONE dropdown for the whole bar, anchored to the paste
+                // button. (A menu inside every item made seven menus open from a
+                // single shared state — the "hundreds of buttons" defect.)
+                if (isPaste) {
+                    androidx.compose.material3.DropdownMenu(
+                        expanded = isPasteMenuOpen,
+                        onDismissRequest = { isPasteMenuOpen = false },
+                        containerColor = palette.surfaceBackground,
+                        shape = RoundedCornerShape(14.dp),
+                        modifier = Modifier.width(150.dp)
+                    ) {
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    "محفظة الهاتف",
+                                    fontFamily = ThmanyahSansFontFamily,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = palette.keyGlyphColor
+                                )
+                            },
+                            onClick = {
+                                isPasteMenuOpen = false
+                                onPasteFromPhone()
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    "محفظة التابلت",
+                                    fontFamily = ThmanyahSansFontFamily,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = palette.keyGlyphColor
+                                )
+                            },
+                            onClick = {
+                                isPasteMenuOpen = false
+                                onPasteFromTablet()
+                            }
+                        )
+                    }
                 }
             }
         }
