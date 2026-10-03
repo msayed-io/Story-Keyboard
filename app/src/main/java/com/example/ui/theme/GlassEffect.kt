@@ -25,7 +25,7 @@ import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.layout.GlobalPositionAwareModifierNode
+import androidx.compose.ui.node.GlobalPositionAwareModifierNode
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.node.DrawModifierNode
@@ -647,7 +647,7 @@ private class GlassSurfaceNode(
             val width = borderWidth.toPx()
             if (width > 0f) {
                 drawPath(
-                    path = edgePath(width),
+                    path = edgePath(width, size.width, size.height, radiusPx),
                     color = borderColor,
                     style = Stroke(width = width)
                 )
@@ -658,7 +658,7 @@ private class GlassSurfaceNode(
             if (themeWidth > 0f) {
                 clipPath(shapePath) {
                     drawPath(
-                        path = edgePath(themeWidth),
+                        path = edgePath(themeWidth, size.width, size.height, radiusPx),
                         color = borderColor,
                         style = Stroke(width = themeWidth)
                     )
@@ -674,7 +674,7 @@ private class GlassSurfaceNode(
                 )
                 // القصّ يضمن أن لا يظهر أي جزء من الحدّ خارج البطاقة أبداً.
                 clipPath(shapePath) {
-                    drawPath(path = edgePath(rimW), brush = brush, style = Stroke(width = rimW))
+                    drawPath(path = edgePath(rimW, size.width, size.height, radiusPx), brush = brush, style = Stroke(width = rimW))
                 }
             }
         }
@@ -683,18 +683,23 @@ private class GlassSurfaceNode(
     }
 
     /** مسار الحافة مُزاحاً للداخل بنصف سماكة القلم، فلا يتجاوز حدود البطاقة. */
-    private fun ContentDrawScope.edgePath(strokeWidth: Float): Path {
+    private fun edgePath(
+        strokeWidth: Float,
+        width: Float,
+        height: Float,
+        radiusPx: Float
+    ): Path {
         val inset = strokeWidth / 2f
         val cornerRadius = if (capsule) {
-            ((size.height - strokeWidth) / 2f).coerceAtLeast(0f)
+            ((height - strokeWidth) / 2f).coerceAtLeast(0f)
         } else {
-            (radius.toPx() - inset).coerceAtLeast(0f)
+            (radiusPx - inset).coerceAtLeast(0f)
         }
         return Path().apply {
             addOutline(
                 Outline.Rounded(
                     RoundRect(
-                        inset, inset, size.width - inset, size.height - inset,
+                        inset, inset, width - inset, height - inset,
                         CornerRadius(cornerRadius)
                     )
                 )
