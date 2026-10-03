@@ -136,6 +136,7 @@ class MainActivity : ComponentActivity() {
                                     currentBlur = keyboardBlur,
                                     hapticIntensity = hapticIntensity,
                                     hasCustomBg = keyboardBgBase64.isNotEmpty(),
+                                    bgBase64 = keyboardBgBase64,
                                     onThemeChanged = { viewModel.setKeyboardTheme(it) },
                                     onOpacityChanged = { viewModel.setKeyboardOpacity(it) },
                                     onBlurChanged = { viewModel.setKeyboardBlur(it) },
@@ -168,6 +169,13 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // عند العودة إلى التطبيق: تأكيد فوري لحقيقة الاتصال بالتابلت،
+        // حتى لا يكون زر «الدخول إلى الكيبورد» وهمياً أبداً.
+        viewModel.refreshConnection()
     }
 
     /**

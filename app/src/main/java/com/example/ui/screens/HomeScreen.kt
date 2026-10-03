@@ -192,10 +192,13 @@ fun HomeScreen(
                             border = statusCardBorder,
                             elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                         ) {
-                            Row(
+                            Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(horizontal = 20.dp, vertical = 18.dp),
+                                    .padding(horizontal = 20.dp, vertical = 18.dp)
+                            ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
@@ -311,6 +314,54 @@ fun HomeScreen(
                                         )
                                     }
                                 }
+                            }
+
+                            // زر العودة إلى الكيبورد — يظهر فقط والاتصال قائم فعلاً
+                            // (حالة الفحص الحقيقية من التابلت، لا مجرّد بيانات محفوظة)
+                            if (isConnected && savedIp.isNotEmpty()) {
+                                Spacer(modifier = Modifier.height(14.dp))
+
+                                val enterInteraction = remember { MutableInteractionSource() }
+                                Button(
+                                    onClick = onNavigateToKeyboard,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(46.dp)
+                                        .appleElasticPinch(enterInteraction)
+                                        .testTag("btn_enter_keyboard"),
+                                    shape = RoundedCornerShape(170.dp),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = AppleWhite,
+                                        contentColor = AppleObsidian
+                                    ),
+                                    interactionSource = enterInteraction
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Keyboard,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(17.dp),
+                                        tint = AppleObsidian
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = "الدخول إلى الكيبورد",
+                                        fontSize = 14.sp,
+                                        fontFamily = ThmanyahSansFontFamily,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+
+                                Spacer(modifier = Modifier.height(6.dp))
+
+                                Text(
+                                    text = "الاتصال ما زال قائماً — تابعي الكتابة من حيث توقّفتِ",
+                                    fontSize = 11.sp,
+                                    fontFamily = ThmanyahSansFontFamily,
+                                    color = AppleAsh,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
                             }
                         }
 

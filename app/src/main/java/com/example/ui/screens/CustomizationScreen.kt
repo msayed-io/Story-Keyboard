@@ -28,6 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -44,6 +45,7 @@ fun CustomizationScreen(
     currentBlur: Int,
     hapticIntensity: Int,
     hasCustomBg: Boolean,
+    bgBase64: String,
     onThemeChanged: (String) -> Unit,
     onOpacityChanged: (Float) -> Unit,
     onBlurChanged: (Int) -> Unit,
@@ -210,7 +212,49 @@ fun CustomizationScreen(
                         }
 
                         if (hasCustomBg) {
-                            Spacer(modifier = Modifier.height(24.dp))
+                            Spacer(modifier = Modifier.height(22.dp))
+
+                            // ===== LIVE PREVIEW =====
+                            // معاينة حيّة مصغّرة: نفس الطبقة الزجاجية ونفس ألوان
+                            // الكيبورد، فتظهر النتيجة كما ستكون عليه بالضبط.
+                            Column(modifier = Modifier.fillMaxWidth()) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "معاينة حيّة",
+                                        fontSize = 14.sp,
+                                        fontFamily = ThmanyahSansFontFamily,
+                                        fontWeight = FontWeight.Bold,
+                                        color = ApplePorcelain
+                                    )
+                                    Text(
+                                        text = "كما ستظهر على كيبوردك",
+                                        fontSize = 11.sp,
+                                        fontFamily = ThmanyahSansFontFamily,
+                                        color = AppleAsh
+                                    )
+                                }
+
+                                Spacer(modifier = Modifier.height(10.dp))
+
+                                Box(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    KeyboardLivePreview(
+                                        bgBase64 = bgBase64,
+                                        themeName = currentTheme,
+                                        opacity = currentOpacity,
+                                        blur = currentBlur,
+                                        modifier = Modifier.testTag("live_preview")
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(20.dp))
 
                             // BACKGROUND OPACITY SLIDER
                             Column {
@@ -245,6 +289,13 @@ fun CustomizationScreen(
                                         inactiveTrackColor = AppleSteel
                                     ),
                                     modifier = Modifier.testTag("slider_opacity")
+                                )
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Text(
+                                    text = "كلما قلّلتِ النسبة، ظهرت صورتك أكثر خلف الأزرار",
+                                    fontSize = 11.sp,
+                                    fontFamily = ThmanyahSansFontFamily,
+                                    color = AppleAsh
                                 )
                             }
 
@@ -441,4 +492,117 @@ fun CustomizationScreen(
             }
         }
     }
+}
+
+// =============================================================================
+//  المعاينة الحيّة المصغّرة
+//
+//  إطار بحجم شاشة الجهاز نفسه (نفس النسب) بداخله نفس الطبقة الزجاجية المستخدمة
+//  على الكيبورد، وفوقها صفوف مفاتيح مصغّرة بألوان الثيم الحقيقي — فما تراه
+//  الكاتبة هنا هو ما ستراه على الكيبورد بالضبط.
+// =============================================================================
+@Composable
+private fun KeyboardLivePreview(
+    bgBase64: String,
+    themeName: String,
+    opacity: Float,
+    blur: Int,
+    modifier: Modifier = Modifier
+) {
+    val palette = rememberThemePalette(themeName)
+    val source = remember(bgBase64) { decodeBase64Bitmap(bgBase64) }
+    val configuration = LocalConfiguration.current
+    val aspect = if (configuration.screenHeightDp > 0) {
+        configuration.screenWidthDp.toFloat() / configuration.screenHeightDp.toFloat()
+    } else {
+        0.5f
+    }
+    val shape = RoundedCornerShape(12.dp)
+    val keyShape = RoundedCornerShape(2.dp)
+
+    Box(
+        modifier = modifier
+            .width(104.dp)
+            .aspectRatio(aspect)
+            .clip(shape)
+            .border(1.dp, Color.White.copy(alpha = 0.16f), shape)
+    ) {
+        GlassBackdrop(
+            sourceBitmap = source,
+            sourceKey = "preview-${bgBase64.length}-${bgBase64.hashCode()}",
+            opacity = opacity,
+            blurRadiusPx = blur,
+            tintColor = palette.canvasBackground,
+            modifier = Modifier.fillMaxSize()
+        )
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(6.dp),
+            verticalArrangement = Arrangement.spacedBy(3.dp)
+        ) {
+            // الشريط العلوي
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(0.12f)
+                    .clip(keyShape)
+                    .background(palette.surfaceBackground.copy(alpha = 0.92f))
+            )
+
+            // صفوف المفاتيح الثلاثة
+            MiniKeyRow(keys = 10, palette = palette, shape = keyShape, weight = 0.24f)
+            MiniKeyRow(keys = 9, palette = palette, shape = keyShape, weight = 0.24f)
+            MiniKeyRow(keys = 7, palette = palette, shape = keyShape, weight = 0.24f)
+
+            // صف المسافة والإدخال
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(0.16f),
+                horizontalArrangement = Arrangement.spacedBy(2.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                MiniKey(palette = palette, shape = keyShape, modifier = Modifier.weight(1f))
+                MiniKey(palette = palette, shape = keyShape, modifier = Modifier.weight(4f))
+                MiniKey(palette = palette, shape = keyShape, modifier = Modifier.weight(1f))
+            }
+        }
+    }
+}
+
+@Composable
+private fun ColumnScope.MiniKeyRow(
+    keys: Int,
+    palette: ThemePalette,
+    shape: RoundedCornerShape,
+    weight: Float
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .weight(weight),
+        horizontalArrangement = Arrangement.spacedBy(2.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        repeat(keys) {
+            MiniKey(palette = palette, shape = shape, modifier = Modifier.weight(1f))
+        }
+    }
+}
+
+@Composable
+private fun MiniKey(
+    palette: ThemePalette,
+    shape: RoundedCornerShape,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .fillMaxHeight()
+            .clip(shape)
+            .background(palette.letterKeycapBg.copy(alpha = 0.94f))
+            .border(0.6.dp, palette.keycapBorder.copy(alpha = 0.30f), shape)
+    )
 }
