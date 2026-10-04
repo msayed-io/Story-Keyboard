@@ -158,6 +158,8 @@ fun KeyboardScreen(
     opacity: Float,
     blur: Int,
     bgBase64: String,
+    bgType: String = "image",
+    bgPath: String = "",
     configuredVibration: Int,
     onSendCommand: (String, String) -> Unit,
     onSendPasteText: (String, (Boolean) -> Unit) -> Unit = { _, _ -> },
@@ -381,6 +383,8 @@ fun KeyboardScreen(
         palette = palette,
         opacity = opacity,
         bgBitmap = bgBitmap,
+        bgType = bgType,
+        bgPath = bgPath,
         glassSampler = glassSampler,
         currentMode = currentMode,
         onModeChange = { currentMode = it },
@@ -428,6 +432,8 @@ internal fun KeyboardFullDesign(
     palette: ThemePalette,
     opacity: Float,
     bgBitmap: Bitmap?,
+    bgType: String = "image",
+    bgPath: String = "",
     glassSampler: GlassSampler?,
     currentMode: KeyboardMode = KeyboardMode.ARABIC,
     onModeChange: (KeyboardMode) -> Unit = {},
@@ -470,9 +476,14 @@ internal fun KeyboardFullDesign(
                 .testTag("native_keyboard_screen")
         ) {
             // =============================================================
-            // BACKGROUND LAYER
+            // BACKGROUND LAYER (فيديو انسيابي مكرر أو صورة زجاجية فائقة)
             // =============================================================
-            if (bgBitmap != null) {
+            if (bgType == "video" && bgPath.isNotEmpty()) {
+                com.example.ui.components.LoopingVideoBackground(
+                    videoPathOrUri = bgPath,
+                    modifier = Modifier.fillMaxSize()
+                )
+            } else if (bgBitmap != null) {
                 GlassWallpaper(bitmap = bgBitmap, modifier = Modifier.fillMaxSize())
             } else {
                 Box(

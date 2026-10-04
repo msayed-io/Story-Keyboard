@@ -14,6 +14,9 @@ class PreferencesManager(context: Context) {
         private const val KEY_KEYBOARD_OPACITY = "keyboard_opacity"
         private const val KEY_KEYBOARD_BLUR = "keyboard_blur"
         private const val KEY_KEYBOARD_BG_BASE64 = "keyboard_bg_base64"
+        private const val KEY_KEYBOARD_BG_TYPE = "keyboard_bg_type"
+        private const val KEY_KEYBOARD_BG_PATH = "keyboard_bg_path"
+        private const val KEY_SELECTED_MEDIA_ID = "selected_media_id"
         private const val KEY_BG_GLASS_MIGRATED = "keyboard_bg_glass_migrated"
     }
 
@@ -44,6 +47,27 @@ class PreferencesManager(context: Context) {
     var keyboardBgBase64: String
         get() = prefs.getString(KEY_KEYBOARD_BG_BASE64, "") ?: ""
         set(value) = prefs.edit().putString(KEY_KEYBOARD_BG_BASE64, value).apply()
+
+    var keyboardBgType: String
+        get() = prefs.getString(KEY_KEYBOARD_BG_TYPE, if (keyboardBgBase64.isNotEmpty() || keyboardBgPath.isNotEmpty()) "image" else "none") ?: "none"
+        set(value) = prefs.edit().putString(KEY_KEYBOARD_BG_TYPE, value).apply()
+
+    var keyboardBgPath: String
+        get() = prefs.getString(KEY_KEYBOARD_BG_PATH, "") ?: ""
+        set(value) = prefs.edit().putString(KEY_KEYBOARD_BG_PATH, value).apply()
+
+    var selectedMediaId: String
+        get() = prefs.getString(KEY_SELECTED_MEDIA_ID, "") ?: ""
+        set(value) = prefs.edit().putString(KEY_SELECTED_MEDIA_ID, value).apply()
+
+    fun clearBackground() {
+        prefs.edit()
+            .remove(KEY_KEYBOARD_BG_BASE64)
+            .remove(KEY_KEYBOARD_BG_PATH)
+            .remove(KEY_KEYBOARD_BG_TYPE)
+            .remove(KEY_SELECTED_MEDIA_ID)
+            .apply()
+    }
 
     /**
      * ترحيل لمرة واحدة فقط: مَن اختارت صورة قبل إصلاح الزجاج بقي slider الشفافية

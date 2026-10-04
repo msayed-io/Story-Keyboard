@@ -1,15 +1,20 @@
 package com.example.viewmodel
 
 import android.app.Application
+import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Matrix
+import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.util.Base64
+import androidx.exifinterface.media.ExifInterface
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.data.MediaItem
+import com.example.data.MediaLibraryRepository
+import com.example.data.MediaType
 import com.example.data.PreferencesManager
-import androidx.exifinterface.media.ExifInterface
 import com.example.network.TabletClient
 import com.example.ui.theme.GlassMath
 import kotlinx.coroutines.Dispatchers
@@ -19,12 +24,15 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
+import java.io.File
+import java.io.FileOutputStream
 import java.io.InputStream
 
 class CompanionViewModel(application: Application) : AndroidViewModel(application) {
 
     val prefs = PreferencesManager(application)
     val client = TabletClient(prefs)
+    val mediaRepository = MediaLibraryRepository(application)
 
     private val _tabletIp = MutableStateFlow(prefs.tabletIp)
     val tabletIp: StateFlow<String> = _tabletIp.asStateFlow()
@@ -47,6 +55,26 @@ class CompanionViewModel(application: Application) : AndroidViewModel(applicatio
     private val _keyboardBgBase64 = MutableStateFlow(prefs.keyboardBgBase64)
     val keyboardBgBase64: StateFlow<String> = _keyboardBgBase64.asStateFlow()
 
+    private val _keyboardBgType = MutableStateFlow(prefs.keyboardBgType)
+    val keyboardBgType: StateFlow<String> = _keyboardBgType.asStateFlow()
+
+    private val _keyboardBgPath = MutableStateFlow(prefs.keyboardBgPath)
+    val keyboardBgPath: StateFlow<String> = _keyboardBgPath.asStateFlow()
+
+    private val _selectedMediaId = MutableStateFlow(prefs.selectedMediaId)
+    val selectedMediaId: StateFlow<String> = _selectedMediaId.asStateFlow()
+
+    private val _videoThumbnailBitmap = MutableStateFlow<Bitmap?>(null)
+    val videoThumbnailBitmap: StateFlow<Bitmap?> = _videoThumbnailBitmap.asStateFlow()
+
+    private val _curatedMediaItems = MutableStateFlow<List<MediaItem>>(emptyList())
+    val curatedMediaItems: StateFlow<List<MediaItem>> = _curatedMediaItems.asStateFlow()
+
+    private val _mediaDownloadError = MutableStateFlow<String?>(null)
+    val mediaDownloadError: StateFlow<String?> = _mediaDownloadError.asStateFlow()
+
+    val downloadProgress: StateFlow<Map<String, Int>> = mediaRepository.downloadProgress
+
     val isConnected: StateFlow<Boolean> = client.isConnected
 
     init {
@@ -56,10 +84,26 @@ class CompanionViewModel(application: Application) : AndroidViewModel(applicatio
         if (prefs.migrateBackgroundGlassOnce()) {
             _keyboardOpacity.value = prefs.keyboardOpacity
         }
+
+        // إذا كانت الخلفية المحفوظة عبارة عن فيديو، استخراج اللقطة المصغرة للزجاج فوراً
+        if (prefs.keyboardBgType == "video" && prefs.keyboardBgPath.isNotEmpty()) {
+            loadVideoThumbnail(File(prefs.keyboardBgPath))
+        }
+
+        // جلب قائمة الوسائط المحدثة عند بدء التشغيل
+        refreshCuratedItems()
+    }
+
+    fun refreshCuratedItems(customManifestUrl: String? = null) {
+        viewModelScope.launch {
+            val items = mediaRepository.fetchRemoteItems(customManifestUrl)
+            if (items.isNotEmpty()) {
+                _curatedMediaItems.value = items
+            }
+        }
     }
 
     fun saveConnection(ip: String, pin: String) {
-        // Clean IP to support hostnames or standard raw IPs
         var cleanIp = ip.trim()
         if (cleanIp.startsWith("http://")) {
             cleanIp = cleanIp.substring(7)
@@ -67,7 +111,6 @@ class CompanionViewModel(application: Application) : AndroidViewModel(applicatio
             cleanIp = cleanIp.substring(8)
         }
         
-        // If IP contains a path or queries, extract just the host:port
         if (cleanIp.contains("/")) {
             cleanIp = cleanIp.substringBefore("/")
         }
@@ -78,7 +121,6 @@ class CompanionViewModel(application: Application) : AndroidViewModel(applicatio
         _tabletIp.value = cleanIp
         _tabletPin.value = pin.trim()
         
-        // Restart ping immediately for faster feedback
         client.startPingLoop()
     }
 
@@ -115,10 +157,6 @@ class CompanionViewModel(application: Application) : AndroidViewModel(applicatio
         _keyboardOpacity.value = opacity
     }
 
-    /**
-     * إعادة تشغيل حلقة الفحص فوراً (عند العودة إلى التطبيق): حالة الاتصال
-     * يجب أن تكون حقيقية لحظتها، لا مجرّد بيانات محفوظة.
-     */
     fun refreshConnection() {
         client.startPingLoop()
     }
@@ -128,46 +166,42 @@ class CompanionViewModel(application: Application) : AndroidViewModel(applicatio
         _keyboardBlur.value = blur
     }
 
-    fun handleImageSelection(uri: Uri) {
+    /**
+     * معالج موحد لاختيار وسائط الجهاز (صور أو فيديوهات) بدقة وسرعة فائقة.
+     */
+    fun handleMediaSelection(uri: Uri) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val context = getApplication<Application>()
-                val resolver = context.contentResolver
+                val mimeType = context.contentResolver.getType(uri) ?: ""
+                val isVideo = mimeType.startsWith("video") || uri.toString().contains(".mp4", ignoreCase = true)
 
-                // 1) قياسات الصورة أولاً دون تحميلها كاملة (حماية من انفجار الذاكرة)
-                val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-                resolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
-                if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return@launch
+                if (isVideo) {
+                    // نسخ الفيديو إلى التخزين الداخلي للتطبيق لضمان تشغيله السلس دائماً
+                    val localVideoFile = File(context.filesDir, "custom_bg_video.mp4")
+                    context.contentResolver.openInputStream(uri)?.use { input ->
+                        FileOutputStream(localVideoFile).use { output ->
+                            input.copyTo(output)
+                        }
+                    }
 
-                // 2) تنزيل ذكي بحسب دقّة الشاشة: تفاصيل كافية للطبقة الزجاجية بلا زيادة
-                val metrics = context.resources.displayMetrics
-                // 1440 حدّ أعلى متعمّد: أوضح من أي طبقة زجاجية نحتاجها، وبلا تضخيم
-                // للذاكرة أو لحجم ما يُحفظ.
-                val targetLongest = maxOf(metrics.widthPixels, metrics.heightPixels)
-                    .coerceIn(1080, 1440)
-                val options = BitmapFactory.Options().apply {
-                    inSampleSize = GlassMath.sampleSizeFor(bounds.outWidth, bounds.outHeight, targetLongest)
-                    inPreferredConfig = Bitmap.Config.ARGB_8888
-                }
-                val decoded = resolver.openInputStream(uri)?.use {
-                    BitmapFactory.decodeStream(it, null, options)
-                } ?: return@launch
+                    val path = localVideoFile.absolutePath
+                    prefs.keyboardBgType = "video"
+                    prefs.keyboardBgPath = path
+                    prefs.selectedMediaId = ""
+                    _keyboardBgType.value = "video"
+                    _keyboardBgPath.value = path
+                    _selectedMediaId.value = ""
 
-                // 3) احترام اتجاه الكاميرا حتى لا تظهر الصورة مقلوبة
-                val oriented = applyExifOrientation(context, uri, decoded)
+                    // استخراج إطار لطبقة الزجاج وتعيين الشفافية المناسبة
+                    loadVideoThumbnail(localVideoFile)
 
-                // 4) حفظ بجودة أعلى: الطبقة الزجاجية تُبنى من هذه الصورة
-                val outputStream = ByteArrayOutputStream()
-                oriented.compress(Bitmap.CompressFormat.JPEG, 84, outputStream)
-                val base64String = Base64.encodeToString(outputStream.toByteArray(), Base64.NO_WRAP)
-                oriented.recycle()
-
-                prefs.keyboardBgBase64 = base64String
-                _keyboardBgBase64.value = base64String
-
-                // 5) اختيار صورة يعني رغبة في رؤيتها: الشفافية العالية كانت تُخفيها تماماً
-                if (_keyboardOpacity.value > 0.75f) {
-                    setKeyboardOpacity(0.45f)
+                    if (_keyboardOpacity.value > 0.75f) {
+                        setKeyboardOpacity(0.45f)
+                    }
+                } else {
+                    // معالجة الصور
+                    processImageSelection(uri)
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -175,7 +209,141 @@ class CompanionViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
-    /** يطبّق اتجاه الكاميرا المسجَّل في الصورة (EXIF). */
+    private suspend fun processImageSelection(uri: Uri) = withContext(Dispatchers.IO) {
+        try {
+            val context = getApplication<Application>()
+            val resolver = context.contentResolver
+
+            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            resolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
+            if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return@withContext
+
+            val metrics = context.resources.displayMetrics
+            val targetLongest = maxOf(metrics.widthPixels, metrics.heightPixels).coerceIn(1080, 1440)
+            val options = BitmapFactory.Options().apply {
+                inSampleSize = GlassMath.sampleSizeFor(bounds.outWidth, bounds.outHeight, targetLongest)
+                inPreferredConfig = Bitmap.Config.ARGB_8888
+            }
+            val decoded = resolver.openInputStream(uri)?.use {
+                BitmapFactory.decodeStream(it, null, options)
+            } ?: return@withContext
+
+            val oriented = applyExifOrientation(context, uri, decoded)
+
+            val outputStream = ByteArrayOutputStream()
+            oriented.compress(Bitmap.CompressFormat.JPEG, 84, outputStream)
+            val base64String = Base64.encodeToString(outputStream.toByteArray(), Base64.NO_WRAP)
+            oriented.recycle()
+
+            prefs.keyboardBgType = "image"
+            prefs.keyboardBgBase64 = base64String
+            prefs.keyboardBgPath = ""
+            prefs.selectedMediaId = ""
+            
+            _keyboardBgType.value = "image"
+            _keyboardBgBase64.value = base64String
+            _keyboardBgPath.value = ""
+            _selectedMediaId.value = ""
+            _videoThumbnailBitmap.value = null
+
+            if (_keyboardOpacity.value > 0.75f) {
+                setKeyboardOpacity(0.45f)
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    /**
+     * اختيار عنصر من المكتبة الأدبية (مع تنزيل حقيقي وعرض النسبة المئوية إذا لم يكن محمّلاً مسبقاً).
+     */
+    fun selectCuratedItem(item: MediaItem, onFinished: () -> Unit = {}) {
+        _mediaDownloadError.value = null
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val file = if (mediaRepository.isDownloaded(item)) {
+                    mediaRepository.getCachedFile(item)
+                } else {
+                    mediaRepository.downloadItem(item)
+                }
+
+                if (file != null && file.exists() && file.length() > 0) {
+                    if (item.type == MediaType.VIDEO) {
+                        val path = file.absolutePath
+                        prefs.keyboardBgType = "video"
+                        prefs.keyboardBgPath = path
+                        prefs.selectedMediaId = item.id
+                        _keyboardBgType.value = "video"
+                        _keyboardBgPath.value = path
+                        _selectedMediaId.value = item.id
+
+                        loadVideoThumbnail(file)
+                    } else {
+                        // تحميل الصورة كـ Base64
+                        val bitmap = BitmapFactory.decodeFile(file.absolutePath)
+                        if (bitmap != null) {
+                            val outputStream = ByteArrayOutputStream()
+                            bitmap.compress(Bitmap.CompressFormat.JPEG, 84, outputStream)
+                            val base64String = Base64.encodeToString(outputStream.toByteArray(), Base64.NO_WRAP)
+                            bitmap.recycle()
+
+                            prefs.keyboardBgType = "image"
+                            prefs.keyboardBgBase64 = base64String
+                            prefs.keyboardBgPath = file.absolutePath
+                            prefs.selectedMediaId = item.id
+
+                            _keyboardBgType.value = "image"
+                            _keyboardBgBase64.value = base64String
+                            _keyboardBgPath.value = file.absolutePath
+                            _selectedMediaId.value = item.id
+                            _videoThumbnailBitmap.value = null
+                        }
+                    }
+
+                    // تحديث حالة التحميل في القائمة المعروضة
+                    _curatedMediaItems.value = _curatedMediaItems.value.map { current ->
+                        if (current.id == item.id) {
+                            current.copy(isDownloaded = true, localPath = file.absolutePath)
+                        } else {
+                            current
+                        }
+                    }
+
+                    if (_keyboardOpacity.value > 0.75f) {
+                        setKeyboardOpacity(0.45f)
+                    }
+
+                    withContext(Dispatchers.Main) {
+                        onFinished()
+                    }
+                } else {
+                    _mediaDownloadError.value = "تعذر تنزيل الصورة أو التحقق من صحتها. يرجى المحاولة مرة أخرى."
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                _mediaDownloadError.value = "حدث خطأ أثناء تنزيل الصورة: ${e.localizedMessage}"
+            }
+        }
+    }
+
+    fun clearMediaDownloadError() {
+        _mediaDownloadError.value = null
+    }
+
+    private fun loadVideoThumbnail(file: File) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val thumb = mediaRepository.extractVideoThumbnail(file)
+            if (thumb != null) {
+                _videoThumbnailBitmap.value = thumb
+                // حفظ نسخة Base64 سريعة للـ GlassEffect
+                val outputStream = ByteArrayOutputStream()
+                thumb.compress(Bitmap.CompressFormat.JPEG, 70, outputStream)
+                val base64String = Base64.encodeToString(outputStream.toByteArray(), Base64.NO_WRAP)
+                _keyboardBgBase64.value = base64String
+            }
+        }
+    }
+
     private fun applyExifOrientation(
         context: Application,
         uri: Uri,
@@ -208,8 +376,12 @@ class CompanionViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     fun clearKeyboardBg() {
-        prefs.keyboardBgBase64 = ""
+        prefs.clearBackground()
         _keyboardBgBase64.value = ""
+        _keyboardBgType.value = "none"
+        _keyboardBgPath.value = ""
+        _selectedMediaId.value = ""
+        _videoThumbnailBitmap.value = null
     }
 
     fun sendCommand(action: String, extraParams: String = "") {
@@ -218,7 +390,6 @@ class CompanionViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
-    /** Large paste from the phone clipboard: POST/JSON, never a URL. */
     fun sendPasteText(text: String, onResult: (Boolean) -> Unit = {}) {
         viewModelScope.launch(Dispatchers.IO) {
             val ok = client.sendPasteText(text)

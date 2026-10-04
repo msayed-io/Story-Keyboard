@@ -1,9 +1,6 @@
 package com.example.ui.screens
 
 import android.net.Uri
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.PickVisualMediaRequest
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -32,12 +29,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.layout.positionInWindow
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
@@ -48,6 +42,9 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.data.MediaItem
+import com.example.ui.components.LoopingVideoBackground
+import com.example.ui.components.MediaPickerModal
 import com.example.ui.theme.*
 import kotlin.math.roundToInt
 
@@ -59,25 +56,23 @@ fun CustomizationScreen(
     hapticIntensity: Int,
     hasCustomBg: Boolean,
     bgBase64: String,
+    bgType: String = "image",
+    bgPath: String = "",
+    selectedMediaId: String = "",
+    curatedItems: List<MediaItem> = emptyList(),
+    downloadProgress: Map<String, Int> = emptyMap(),
     onThemeChanged: (String) -> Unit,
     onOpacityChanged: (Float) -> Unit,
     onBlurChanged: (Int) -> Unit,
     onHapticChanged: (Int) -> Unit,
-    onImageSelected: (Uri) -> Unit,
+    onSelectCuratedItem: (MediaItem, () -> Unit) -> Unit = { _, _ -> },
+    onMediaSelected: (Uri) -> Unit,
     onClearBg: () -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val scrollState = rememberScrollState()
-
-    // Zero-permission Photo Picker for maximum security and policy compliance
-    val pickMedia = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.PickVisualMedia()
-    ) { uri ->
-        if (uri != null) {
-            onImageSelected(uri)
-        }
-    }
+    var isMediaModalOpen by remember { mutableStateOf(false) }
 
     val isDark = MaterialTheme.colorScheme.background == Color(0xFF111718)
 
@@ -132,7 +127,7 @@ fun CustomizationScreen(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 
-                // HERO CARD: تظهر المعاينة الحيّة التفاعلية للكيبورد فقط عند رفع صورة مخصصة
+                // HERO CARD: تظهر المعاينة الحيّة التفاعلية للكيبورد فقط عند رفع وسائط مخصصة (صورة أو فيديو)
                 if (hasCustomBg) {
                     Card(
                         shape = RoundedCornerShape(28.dp),
@@ -167,7 +162,7 @@ fun CustomizationScreen(
                                     )
                                 }
                                 Text(
-                                    text = "كما يظهر على كيبوردكِ",
+                                    text = if (bgType == "video") "بث فيديو حي ❦" else "كما يظهر على كيبوردكِ",
                                     fontSize = 11.sp,
                                     fontFamily = ThmanyahSansFontFamily,
                                     color = AppleAsh
@@ -182,6 +177,8 @@ fun CustomizationScreen(
                             ) {
                                 KeyboardLivePreview(
                                     bgBase64 = bgBase64,
+                                    bgType = bgType,
+                                    bgPath = bgPath,
                                     themeName = currentTheme,
                                     opacity = currentOpacity,
                                     blur = currentBlur,
@@ -192,7 +189,7 @@ fun CustomizationScreen(
                     }
                 }
 
-                // SECTION 1: بطاقة الخلفية المخصصة والشفافية مع أزرار رفع حديثة وسلايدر فخم
+                // SECTION 1: بطاقة الخلفية المخصصة والشفافية مع نافذة الاختيار الفاخرة
                 Card(
                     shape = RoundedCornerShape(28.dp),
                     colors = CardDefaults.cardColors(containerColor = AppleCarbon),
@@ -212,7 +209,7 @@ fun CustomizationScreen(
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(
                                     imageVector = Icons.Default.Image,
-                                    contentDescription = "صورة الخلفية",
+                                    contentDescription = "وسائط الخلفية",
                                     tint = ApplePorcelain,
                                     modifier = Modifier.size(20.dp)
                                 )
@@ -226,7 +223,7 @@ fun CustomizationScreen(
                                 )
                             }
                             
-                            // أدوات تحكم صغيرة وأنيقة للغاية (أيقونة رفع حديثة بجانب أيقونة الحذف)
+                            // أزرار التحكم: فتح نافذة الوسائط الأدبية والمحلية الفاخرة + زر المسح
                             Row(
                                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                                 verticalAlignment = Alignment.CenterVertically
@@ -243,7 +240,7 @@ fun CustomizationScreen(
                                             interactionSource = uploadInteraction,
                                             indication = null,
                                             onClick = {
-                                                pickMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                                                isMediaModalOpen = true
                                             }
                                         )
                                         .testTag("btn_select_bg"),
@@ -251,7 +248,7 @@ fun CustomizationScreen(
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.CloudUpload,
-                                        contentDescription = "رفع خلفية مخصصة",
+                                        contentDescription = "اختيار وسائط مخصصة",
                                         tint = ApplePorcelain,
                                         modifier = Modifier.size(18.dp)
                                     )
@@ -319,7 +316,7 @@ fun CustomizationScreen(
                                 )
                                 Spacer(modifier = Modifier.height(6.dp))
                                 Text(
-                                    text = "كلما قلّلتِ النسبة، ظهرت صورتك أكثر خلف الأزرار",
+                                    text = "كلما قلّلتِ النسبة، ظهرت الخلفية وحركتها أكثر خلف الأزرار",
                                     fontSize = 11.sp,
                                     fontFamily = ThmanyahSansFontFamily,
                                     color = AppleAsh
@@ -361,7 +358,7 @@ fun CustomizationScreen(
                         } else {
                             Spacer(modifier = Modifier.height(16.dp))
                             Text(
-                                text = "لإضافة صورة مخصصة خلف أزرار الكيبورد، اضغطي على زر الرفع في الأعلى ❦",
+                                text = "لإضافة صورة أو فيديو مخصص خلف أزرار الكيبورد، اضغطي على زر الرفع في الأعلى ❦",
                                 fontSize = 12.sp,
                                 fontFamily = ThmanyahSansFontFamily,
                                 color = AppleAsh,
@@ -449,7 +446,7 @@ fun CustomizationScreen(
             }
         }
 
-        // FLOATING TOP CAPSULE HEADER SYSTEM (نظام كبسولات علوية فاخرة غير شفافة لحماية تداخل النص)
+        // FLOATING TOP CAPSULE HEADER SYSTEM
         CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
             Row(
                 modifier = Modifier
@@ -464,7 +461,7 @@ fun CustomizationScreen(
                     modifier = Modifier
                         .height(44.dp)
                         .clip(RoundedCornerShape(22.dp))
-                        .background(Color(0xFF1D1D1F)) // Solid Apple Carbon, zero transparency
+                        .background(Color(0xFF1D1D1F))
                         .border(
                             width = 1.dp,
                             color = AppleSteel,
@@ -490,7 +487,7 @@ fun CustomizationScreen(
                     modifier = Modifier
                         .size(44.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFF1D1D1F)) // Solid Apple Carbon, zero transparency
+                        .background(Color(0xFF1D1D1F))
                         .border(
                             width = 1.dp,
                             color = AppleSteel,
@@ -514,14 +511,29 @@ fun CustomizationScreen(
                 }
             }
         }
+
+        // نافذة اختيار الوسائط المنبثقة العائمة (المكتبة الأدبية ومحلي)
+        MediaPickerModal(
+            isOpen = isMediaModalOpen,
+            selectedMediaId = selectedMediaId,
+            curatedItems = curatedItems,
+            downloadProgress = downloadProgress,
+            onSelectCuratedItem = { item ->
+                onSelectCuratedItem(item) {
+                    isMediaModalOpen = false
+                }
+            },
+            onSelectLocalMedia = { uri ->
+                onMediaSelected(uri)
+                isMediaModalOpen = false
+            },
+            onDismiss = { isMediaModalOpen = false }
+        )
     }
 }
 
 // =============================================================================
 //  سلايدر فاخر مخصص بالكامل (Premium Custom Slider Component)
-//
-//  يستبدل السلايدرات القديمة البسيطة بتصميم كبسولي حديث ذو حافة محددة
-//  ومؤشر منزلق فخم يعطي تجربة مستخدم تضاهي أفخم أنظمة التشغيل العالمية.
 // =============================================================================
 @Composable
 fun PremiumSlider(
@@ -533,7 +545,6 @@ fun PremiumSlider(
     val density = LocalDensity.current
     var widthPx by remember { mutableStateOf(0) }
 
-    // تثبيت اتجاه LTR الصارم للسلايدر لضمان أن السحب لليمين يقدّم ويزيد القيمة دائماً
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
         Box(
             modifier = modifier
@@ -562,7 +573,7 @@ fun PremiumSlider(
                             }
                         },
                         onDrag = { change, _ ->
-                            change.consume() // استهلاك الحدث حتى لا يقاطعه التمرير الرأسي للشاشة
+                            change.consume()
                             if (widthPx > 0) {
                                 val fraction = (change.position.x / widthPx).coerceIn(0f, 1f)
                                 val newValue = valueRange.start + fraction * (valueRange.endInclusive - valueRange.start)
@@ -574,7 +585,6 @@ fun PremiumSlider(
         ) {
             val fraction = ((value - valueRange.start) / (valueRange.endInclusive - valueRange.start)).coerceIn(0f, 1f)
             
-            // Active filled progress track
             Box(
                 modifier = Modifier
                     .fillMaxHeight()
@@ -589,7 +599,6 @@ fun PremiumSlider(
                     )
             )
             
-            // Premium Sliding Capsule Thumb/Handle
             val thumbWidth = 14.dp
             val maxOffsetDp = with(density) { (widthPx).toDp() } - thumbWidth
             val offsetDp = (fraction * maxOffsetDp.value).dp
@@ -607,14 +616,13 @@ fun PremiumSlider(
 }
 
 // =============================================================================
-//  المعاينة الحيّة الأصلية للكيبورد الحقيقي (Authentic Keyboard Live Preview)
-//
-//  استدعاء الكود الحقيقي والتصميم الأصلي للكيبورد بالكامل بجميع أزراره
-//  وزجاجه وترتيبه وتدرجاته، مع تحسين استهلاك الذاكرة وتثبيت الاتجاه LTR.
+//  المعاينة الحيّة التفاعلية للكيبورد الحقيقي (تشمل الصور وفيديوهات الخلفية بدقة)
 // =============================================================================
 @Composable
 private fun KeyboardLivePreview(
     bgBase64: String,
+    bgType: String,
+    bgPath: String,
     themeName: String,
     opacity: Float,
     blur: Int,
@@ -623,7 +631,6 @@ private fun KeyboardLivePreview(
     val palette = rememberThemePalette(themeName)
     val bgBitmap = remember(bgBase64) { decodeBase64Bitmap(bgBase64) }
 
-    // Reference dimensions: Standard tablet/phone landscape display aspect ratio (840x380 dp)
     val refWidthDp = 840.dp
     val refHeightDp = 380.dp
     val density = LocalDensity.current
@@ -631,7 +638,6 @@ private fun KeyboardLivePreview(
     val targetWPx = with(density) { refWidthDp.roundToPx() }
     val targetHPx = with(density) { refHeightDp.roundToPx() }
 
-    // أبعاد خفيفة وسريعة للمعاينة تحمي من نفاد الذاكرة (OutOfMemoryError) على جميع الأجهزة
     val previewTargetWidthPx = 640
     val previewTargetHeightPx = 290
 
@@ -643,7 +649,6 @@ private fun KeyboardLivePreview(
         blurRadiusPx = blur
     )
 
-    // تتبع الإحداثيات الديناميكية بدقة متناهية لمنع انهيار الرسم أو تلاشي الزجاج داخل بطاقة المعاينة
     var containerOriginInWindow by remember { mutableStateOf(Offset.Zero) }
 
     val sampler = remember(glassImage, opacity, targetWPx, targetHPx, containerOriginInWindow) {
@@ -660,7 +665,6 @@ private fun KeyboardLivePreview(
 
     var currentPreviewMode by remember { mutableStateOf(KeyboardMode.ARABIC) }
 
-    // حماية المعاينة من انعكاس إحداثيات RTL في الهواتف العربية
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
         Box(
             modifier = modifier
@@ -670,6 +674,16 @@ private fun KeyboardLivePreview(
                 .border(1.dp, Color.White.copy(alpha = 0.16f), RoundedCornerShape(14.dp))
                 .background(palette.canvasBackground)
         ) {
+            // خلفية المعاينة: فيديو حيّ أو صورة ثابتة
+            if (bgType == "video" && bgPath.isNotEmpty()) {
+                LoopingVideoBackground(
+                    videoPathOrUri = bgPath,
+                    modifier = Modifier.fillMaxSize()
+                )
+            } else if (bgBitmap != null) {
+                GlassWallpaper(bitmap = bgBitmap, modifier = Modifier.fillMaxSize())
+            }
+
             BoxWithConstraints(
                 modifier = Modifier.fillMaxSize()
             ) {
@@ -694,7 +708,9 @@ private fun KeyboardLivePreview(
                     KeyboardFullDesign(
                         palette = palette,
                         opacity = opacity,
-                        bgBitmap = bgBitmap,
+                        bgBitmap = null, // الفيديو أو الصورة يُرسمان كخلفية موحدة في الأعلى
+                        bgType = bgType,
+                        bgPath = bgPath,
                         glassSampler = sampler,
                         currentMode = currentPreviewMode,
                         onModeChange = { currentPreviewMode = it },

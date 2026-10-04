@@ -317,7 +317,6 @@ fun HomeScreen(
                             }
 
                             // زر العودة إلى الكيبورد — يظهر فقط والاتصال قائم فعلاً
-                            // (حالة الفحص الحقيقية من التابلت، لا مجرّد بيانات محفوظة)
                             if (isConnected && savedIp.isNotEmpty()) {
                                 Spacer(modifier = Modifier.height(14.dp))
 

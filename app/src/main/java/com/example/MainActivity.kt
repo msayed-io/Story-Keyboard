@@ -53,6 +53,19 @@ class MainActivity : ComponentActivity() {
             val keyboardOpacity by viewModel.keyboardOpacity.collectAsStateWithLifecycle()
             val keyboardBlur by viewModel.keyboardBlur.collectAsStateWithLifecycle()
             val keyboardBgBase64 by viewModel.keyboardBgBase64.collectAsStateWithLifecycle()
+            val keyboardBgType by viewModel.keyboardBgType.collectAsStateWithLifecycle()
+            val keyboardBgPath by viewModel.keyboardBgPath.collectAsStateWithLifecycle()
+            val selectedMediaId by viewModel.selectedMediaId.collectAsStateWithLifecycle()
+            val downloadProgress by viewModel.downloadProgress.collectAsStateWithLifecycle()
+            val curatedMediaItems by viewModel.curatedMediaItems.collectAsStateWithLifecycle()
+            val mediaDownloadError by viewModel.mediaDownloadError.collectAsStateWithLifecycle()
+
+            LaunchedEffect(mediaDownloadError) {
+                mediaDownloadError?.let { err ->
+                    Toast.makeText(this@MainActivity, err, Toast.LENGTH_LONG).show()
+                    viewModel.clearMediaDownloadError()
+                }
+            }
 
             MyApplicationTheme(themeId = keyboardTheme) {
                 var currentScreen by remember { mutableStateOf(AppScreen.HOME) }
@@ -135,13 +148,21 @@ class MainActivity : ComponentActivity() {
                                     currentOpacity = keyboardOpacity,
                                     currentBlur = keyboardBlur,
                                     hapticIntensity = hapticIntensity,
-                                    hasCustomBg = keyboardBgBase64.isNotEmpty(),
+                                    hasCustomBg = keyboardBgBase64.isNotEmpty() || (keyboardBgType == "video" && keyboardBgPath.isNotEmpty()),
                                     bgBase64 = keyboardBgBase64,
+                                    bgType = keyboardBgType,
+                                    bgPath = keyboardBgPath,
+                                    selectedMediaId = selectedMediaId,
+                                    curatedItems = curatedMediaItems,
+                                    downloadProgress = downloadProgress,
                                     onThemeChanged = { viewModel.setKeyboardTheme(it) },
                                     onOpacityChanged = { viewModel.setKeyboardOpacity(it) },
                                     onBlurChanged = { viewModel.setKeyboardBlur(it) },
                                     onHapticChanged = { viewModel.setHapticIntensity(it) },
-                                    onImageSelected = { uri -> viewModel.handleImageSelection(uri) },
+                                    onSelectCuratedItem = { item, onFinished ->
+                                        viewModel.selectCuratedItem(item, onFinished)
+                                    },
+                                    onMediaSelected = { uri -> viewModel.handleMediaSelection(uri) },
                                     onClearBg = { viewModel.clearKeyboardBg() },
                                     onBack = { currentScreen = AppScreen.HOME }
                                 )
@@ -154,6 +175,8 @@ class MainActivity : ComponentActivity() {
                                     opacity = keyboardOpacity,
                                     blur = keyboardBlur,
                                     bgBase64 = keyboardBgBase64,
+                                    bgType = keyboardBgType,
+                                    bgPath = keyboardBgPath,
                                     configuredVibration = hapticIntensity,
                                     onSendCommand = { action, extra ->
                                         viewModel.sendCommand(action, extra)
