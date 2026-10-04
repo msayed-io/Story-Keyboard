@@ -18,9 +18,12 @@ import com.example.data.PreferencesManager
 import com.example.network.TabletClient
 import com.example.ui.theme.GlassMath
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
@@ -78,27 +81,37 @@ class CompanionViewModel(application: Application) : AndroidViewModel(applicatio
     val isConnected: StateFlow<Boolean> = client.isConnected
 
     init {
-        client.startPingLoop()
-
-        // إصلاح خلفية واحدة: صورة محفوظة بشفافية 96% كانت تختفي تماماً
-        if (prefs.migrateBackgroundGlassOnce()) {
-            _keyboardOpacity.value = prefs.keyboardOpacity
+        // قراءة فورية للكاش المحلي بدون أي تأخير عند فتح التطبيق
+        val cached = mediaRepository.getCachedItemsImmediately()
+        if (cached.isNotEmpty()) {
+            _curatedMediaItems.value = cached
         }
 
-        // إذا كانت الخلفية المحفوظة عبارة عن فيديو، استخراج اللقطة المصغرة للزجاج فوراً
-        if (prefs.keyboardBgType == "video" && prefs.keyboardBgPath.isNotEmpty()) {
-            loadVideoThumbnail(File(prefs.keyboardBgPath))
-        }
+        viewModelScope.launch(Dispatchers.IO) {
+            client.startPingLoop()
 
-        // جلب قائمة الوسائط المحدثة عند بدء التشغيل
-        refreshCuratedItems()
+            // إصلاح خلفية واحدة: صورة محفوظة بشفافية 96% كانت تختفي تماماً
+            if (prefs.migrateBackgroundGlassOnce()) {
+                _keyboardOpacity.value = prefs.keyboardOpacity
+            }
+
+            // إذا كانت الخلفية المحفوظة عبارة عن فيديو، استخراج اللقطة المصغرة للزجاج فوراً
+            if (prefs.keyboardBgType == "video" && prefs.keyboardBgPath.isNotEmpty()) {
+                loadVideoThumbnail(File(prefs.keyboardBgPath))
+            }
+
+            // تحديث قائمة الوسائط في الخلفية
+            refreshCuratedItems()
+        }
     }
 
     fun refreshCuratedItems(customManifestUrl: String? = null) {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             val items = mediaRepository.fetchRemoteItems(customManifestUrl)
             if (items.isNotEmpty()) {
-                _curatedMediaItems.value = items
+                withContext(Dispatchers.Main) {
+                    _curatedMediaItems.value = items
+                }
             }
         }
     }
@@ -397,8 +410,126 @@ class CompanionViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
 
+    private val _isAudioGuidePlaying = MutableStateFlow(false)
+    val isAudioGuidePlaying: StateFlow<Boolean> = _isAudioGuidePlaying.asStateFlow()
+
+    val audioEngine = com.example.data.AudioReactivityEngine(viewModelScope)
+    val orbAudioState: StateFlow<com.example.ui.components.OrbAudioState> = audioEngine.audioState
+
+    private var mediaPlayer: android.media.MediaPlayer? = null
+    private var fadeJob: Job? = null
+
+    fun checkAndPlayWelcomeAudioOnFirstLaunch() {
+        if (!prefs.hasPlayedWelcomeAudio) {
+            prefs.hasPlayedWelcomeAudio = true
+            playWelcomeAudio()
+        }
+    }
+
+    fun playWelcomeAudio() {
+        fadeJob?.cancel()
+        try {
+            val context = getApplication<Application>()
+            val resId = context.resources.getIdentifier("welcome_narration", "raw", context.packageName)
+            if (resId != 0) {
+                mediaPlayer?.release()
+                val player = android.media.MediaPlayer.create(context, resId)
+                if (player != null) {
+                    mediaPlayer = player
+                    player.setVolume(1.0f, 1.0f)
+                    player.setOnCompletionListener {
+                        viewModelScope.launch(Dispatchers.Main) {
+                            _isAudioGuidePlaying.value = false
+                            audioEngine.stop()
+                            try {
+                                it.release()
+                            } catch (e: Exception) {}
+                            mediaPlayer = null
+                        }
+                    }
+                    player.start()
+                    _isAudioGuidePlaying.value = true
+                    audioEngine.attachAudioSession(player.audioSessionId)
+
+                    // مراقبة نهاية المقطع لتطبيق التلاشي التدريجي الناعم (Smooth Fade-Out) قبل النهاية بـ 1200ms
+                    fadeJob = viewModelScope.launch(Dispatchers.Default) {
+                        try {
+                            val duration = player.duration
+                            val fadeDurationMs = 1200L
+                            val fadeStartTime = (duration - fadeDurationMs).coerceAtLeast(0L)
+
+                            while (isActive && player.isPlaying) {
+                                val current = try { player.currentPosition } catch (e: Exception) { break }
+                                if (current >= fadeStartTime && duration > 0) {
+                                    val remaining = (duration - current).coerceAtLeast(0)
+                                    val volumeFraction = (remaining.toFloat() / fadeDurationMs.toFloat()).coerceIn(0f, 1f)
+                                    try {
+                                        player.setVolume(volumeFraction, volumeFraction)
+                                    } catch (e: Exception) {}
+                                }
+                                delay(40)
+                            }
+                        } catch (e: Exception) {}
+                    }
+                } else {
+                    _isAudioGuidePlaying.value = true
+                    audioEngine.startSyntheticSpeechModulation()
+                }
+            } else {
+                // Visual simulation for UI preview when raw file is being added
+                _isAudioGuidePlaying.value = true
+                audioEngine.startSyntheticSpeechModulation()
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            _isAudioGuidePlaying.value = false
+            audioEngine.stop()
+        }
+    }
+
+    fun stopWelcomeAudio() {
+        fadeJob?.cancel()
+        fadeJob = viewModelScope.launch(Dispatchers.Default) {
+            try {
+                val player = mediaPlayer
+                if (player != null && player.isPlaying) {
+                    // Gentle fast fade-out over 250ms on manual dismiss
+                    for (i in 10 downTo 0) {
+                        val vol = (i / 10f)
+                        try { player.setVolume(vol, vol) } catch (e: Exception) {}
+                        delay(25)
+                    }
+                    try { player.stop() } catch (e: Exception) {}
+                    try { player.release() } catch (e: Exception) {}
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            } finally {
+                mediaPlayer = null
+                withContext(Dispatchers.Main) {
+                    audioEngine.stop()
+                    _isAudioGuidePlaying.value = false
+                }
+            }
+        }
+    }
+
+    fun setAudioGuidePlaying(playing: Boolean) {
+        if (playing) {
+            playWelcomeAudio()
+        } else {
+            stopWelcomeAudio()
+        }
+    }
+
     override fun onCleared() {
         super.onCleared()
         client.stopPingLoop()
+        fadeJob?.cancel()
+        audioEngine.release()
+        try {
+            mediaPlayer?.release()
+        } catch (e: Exception) {}
+        mediaPlayer = null
     }
 }

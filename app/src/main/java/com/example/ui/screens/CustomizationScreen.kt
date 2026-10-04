@@ -456,16 +456,16 @@ fun CustomizationScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Title/Brand Floating Capsule
+                // Title/Brand Floating Capsule - 100% Full Pill Curve
                 Box(
                     modifier = Modifier
                         .height(44.dp)
-                        .clip(RoundedCornerShape(22.dp))
-                        .background(Color(0xFF1D1D1F))
+                        .clip(CircleShape)
+                        .background(AppleGraphite.copy(alpha = 0.94f))
                         .border(
                             width = 1.dp,
                             color = AppleSteel,
-                            shape = RoundedCornerShape(22.dp)
+                            shape = CircleShape
                         )
                         .padding(horizontal = 20.dp),
                     contentAlignment = Alignment.Center
@@ -487,7 +487,7 @@ fun CustomizationScreen(
                     modifier = Modifier
                         .size(44.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFF1D1D1F))
+                        .background(AppleGraphite.copy(alpha = 0.94f))
                         .border(
                             width = 1.dp,
                             color = AppleSteel,

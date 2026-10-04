@@ -59,6 +59,12 @@ class MainActivity : ComponentActivity() {
             val downloadProgress by viewModel.downloadProgress.collectAsStateWithLifecycle()
             val curatedMediaItems by viewModel.curatedMediaItems.collectAsStateWithLifecycle()
             val mediaDownloadError by viewModel.mediaDownloadError.collectAsStateWithLifecycle()
+            val isAudioGuidePlaying by viewModel.isAudioGuidePlaying.collectAsStateWithLifecycle()
+            val orbAudioState by viewModel.orbAudioState.collectAsStateWithLifecycle()
+
+            LaunchedEffect(Unit) {
+                viewModel.checkAndPlayWelcomeAudioOnFirstLaunch()
+            }
 
             LaunchedEffect(mediaDownloadError) {
                 mediaDownloadError?.let { err ->
@@ -98,6 +104,11 @@ class MainActivity : ComponentActivity() {
                                             "تم قطع الاتصال وإنهاء الجلسة بنجاح 🔴",
                                             Toast.LENGTH_SHORT
                                         ).show()
+                                    },
+                                    isAudioGuidePlaying = isAudioGuidePlaying,
+                                    audioState = orbAudioState,
+                                    onDismissAudioGuide = {
+                                        viewModel.stopWelcomeAudio()
                                     }
                                 )
                             }

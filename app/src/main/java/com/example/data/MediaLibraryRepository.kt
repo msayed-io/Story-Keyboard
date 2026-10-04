@@ -85,8 +85,8 @@ class MediaLibraryRepository(private val context: Context) {
     }
 
     private val httpClient = OkHttpClient.Builder()
-        .connectTimeout(15, TimeUnit.SECONDS)
-        .readTimeout(30, TimeUnit.SECONDS)
+        .connectTimeout(5, TimeUnit.SECONDS)
+        .readTimeout(10, TimeUnit.SECONDS)
         .build()
 
     private val _downloadProgress = MutableStateFlow<Map<String, Int>>(emptyMap())
@@ -98,19 +98,35 @@ class MediaLibraryRepository(private val context: Context) {
     private val manifestCacheFile: File
         get() = File(context.filesDir, "hikayat_manifest_cache.json")
 
+    @Volatile
+    private var inMemoryItemsCache: List<MediaItem> = emptyList()
+
+    /**
+     * استرجاع فوري من الذاكرة أو القرص لتسريع فتح التطبيق بدون أي انتظار
+     */
+    fun getCachedItemsImmediately(): List<MediaItem> {
+        if (inMemoryItemsCache.isNotEmpty()) return inMemoryItemsCache
+        val cached = readCachedManifest()
+        if (cached.isNotEmpty()) {
+            inMemoryItemsCache = cached
+        }
+        return inMemoryItemsCache
+    }
+
     /**
      * جلب قائمة الوسائط الكاملة من مستودع Hikayat Keyboard الأصلي
      * يدمج المصفوفات: assets (27) + curated_assets (50) = 77 صورة
      */
     suspend fun fetchRemoteItems(customUrl: String? = null): List<MediaItem> = withContext(Dispatchers.IO) {
         // 1. القراءة الفورية من الكاش المحلي إن وجد لتسريع العرض
-        val cachedItems = readCachedManifest()
+        val cachedItems = getCachedItemsImmediately()
 
-        // 2. تحديث الـ manifest في الخلفية من الإصدار المثبت v1.3.1
+        // 2. تحديث الـ manifest في الخلفية من شبكة الـ CDN السريعة v1.3.1
         val freshJson = downloadFreshManifest(customUrl)
         if (!freshJson.isNullOrEmpty()) {
             val freshItems = parseJsonManifest(freshJson)
             if (freshItems.isNotEmpty()) {
+                inMemoryItemsCache = freshItems
                 try {
                     manifestCacheFile.writeText(freshJson)
                 } catch (e: Exception) {
@@ -146,8 +162,8 @@ class MediaLibraryRepository(private val context: Context) {
             listOf(customUrl)
         } else {
             listOf(
-                LibraryConfig.PRIMARY_MANIFEST_URL,
-                LibraryConfig.CDN_MANIFEST_URL
+                LibraryConfig.CDN_MANIFEST_URL,      // CDN أولاً لسرعة الاستجابة اللحظية
+                LibraryConfig.PRIMARY_MANIFEST_URL
             )
         }
 

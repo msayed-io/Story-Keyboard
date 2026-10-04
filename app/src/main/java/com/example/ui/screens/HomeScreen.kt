@@ -19,6 +19,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.Keyboard
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Settings
@@ -43,6 +44,8 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.R
+import com.example.ui.components.OrbAudioState
+import com.example.ui.components.ThinkingOrbAudioCapsule
 import com.example.ui.theme.*
 
 @Composable
@@ -53,6 +56,9 @@ fun HomeScreen(
     onNavigateToScanner: () -> Unit,
     onNavigateToCustomization: () -> Unit,
     onDisconnect: () -> Unit = {},
+    isAudioGuidePlaying: Boolean = false,
+    audioState: OrbAudioState = OrbAudioState(),
+    onDismissAudioGuide: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val scrollState = rememberScrollState()
@@ -444,18 +450,18 @@ fun HomeScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Title Capsule (الجانب الأيمن)
+                // Title Capsule (الجانب الأيمن) - 100% Full Pill Curve
                 Box(
                     modifier = Modifier
                         .height(44.dp)
-                        .clip(RoundedCornerShape(20.dp))
+                        .clip(CircleShape)
                         .background(AppleGraphite.copy(alpha = 0.94f))
                         .border(
                             width = 1.dp,
                             color = AppleSteel,
-                            shape = RoundedCornerShape(20.dp)
+                            shape = CircleShape
                         )
-                        .padding(horizontal = 18.dp),
+                        .padding(horizontal = 20.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
@@ -469,19 +475,19 @@ fun HomeScreen(
                     )
                 }
 
-                // Combined Quick Status & Settings Capsule (44dp height)
+                // Combined Quick Status & Settings Capsule (44dp height) - 100% Full Pill Curve
                 val settingsInteraction = remember { MutableInteractionSource() }
                 Box(
                     modifier = Modifier
                         .height(44.dp)
-                        .clip(RoundedCornerShape(20.dp))
+                        .clip(CircleShape)
                         .background(AppleGraphite.copy(alpha = 0.94f))
                         .border(
                             width = 1.dp,
                             color = AppleSteel,
-                            shape = RoundedCornerShape(20.dp)
+                            shape = CircleShape
                         )
-                        .padding(start = 14.dp, end = 6.dp),
+                        .padding(start = 16.dp, end = 8.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Row(
@@ -512,17 +518,17 @@ fun HomeScreen(
                             )
                         }
 
-                        Spacer(modifier = Modifier.width(10.dp))
+                        Spacer(modifier = Modifier.width(12.dp))
 
                         // Subtle Vertical Divider
                         Box(
                             modifier = Modifier
                                 .width(1.dp)
-                                .height(16.dp)
+                                .height(18.dp)
                                 .background(AppleSteel)
                         )
 
-                        Spacer(modifier = Modifier.width(4.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
 
                         // Settings Icon Button
                         Box(
@@ -548,6 +554,14 @@ fun HomeScreen(
                     }
                 }
             }
+
+            // FLOATING BOTTOM THINKING ORB AUDIO CAPSULE
+            ThinkingOrbAudioCapsule(
+                visible = isAudioGuidePlaying,
+                audioState = audioState,
+                onDismiss = onDismissAudioGuide,
+                modifier = Modifier.fillMaxSize()
+            )
         }
     }
 }

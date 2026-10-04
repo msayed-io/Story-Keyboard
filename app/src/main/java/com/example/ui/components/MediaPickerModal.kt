@@ -36,6 +36,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import coil.compose.AsyncImage
+import coil.request.CachePolicy
 import coil.request.ImageRequest
 import com.example.data.MediaItem
 import com.example.data.MediaType
@@ -490,11 +491,14 @@ private fun CuratedMediaGridSection(
                         .testTag("media_item_${item.id}"),
                     contentAlignment = Alignment.Center
                 ) {
-                    // الصورة المعروضة داخل البطاقة
+                    // الصورة المعروضة داخل البطاقة مع تفعيل التخزين المؤقت فائق السرعة
                     AsyncImage(
                         model = ImageRequest.Builder(context)
                             .data(item.previewUrl)
-                            .crossfade(true)
+                            .crossfade(100)
+                            .memoryCachePolicy(CachePolicy.ENABLED)
+                            .diskCachePolicy(CachePolicy.ENABLED)
+                            .networkCachePolicy(CachePolicy.ENABLED)
                             .build(),
                         contentDescription = null,
                         contentScale = ContentScale.Crop,

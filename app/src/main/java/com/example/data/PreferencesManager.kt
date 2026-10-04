@@ -18,7 +18,12 @@ class PreferencesManager(context: Context) {
         private const val KEY_KEYBOARD_BG_PATH = "keyboard_bg_path"
         private const val KEY_SELECTED_MEDIA_ID = "selected_media_id"
         private const val KEY_BG_GLASS_MIGRATED = "keyboard_bg_glass_migrated"
+        private const val KEY_WELCOME_AUDIO_PLAYED = "welcome_audio_played_v1"
     }
+
+    var hasPlayedWelcomeAudio: Boolean
+        get() = prefs.getBoolean(KEY_WELCOME_AUDIO_PLAYED, false)
+        set(value) = prefs.edit().putBoolean(KEY_WELCOME_AUDIO_PLAYED, value).apply()
 
     var tabletIp: String
         get() = prefs.getString(KEY_TABLET_IP, "") ?: ""

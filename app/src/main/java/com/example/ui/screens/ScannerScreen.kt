@@ -153,16 +153,16 @@ fun ScannerScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Title/Brand Floating Capsule (First -> Right side)
+                // Title/Brand Floating Capsule (First -> Right side) - 100% Full Pill Curve
                 Box(
                     modifier = Modifier
                         .height(44.dp)
-                        .clip(RoundedCornerShape(20.dp))
+                        .clip(CircleShape)
                         .background(AppleGraphite.copy(alpha = 0.94f))
                         .border(
                             width = 1.dp,
                             color = AppleSteel,
-                            shape = RoundedCornerShape(20.dp)
+                            shape = CircleShape
                         )
                         .padding(horizontal = 20.dp),
                     contentAlignment = Alignment.Center
