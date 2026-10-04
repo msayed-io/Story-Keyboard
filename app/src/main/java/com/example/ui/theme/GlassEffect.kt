@@ -36,6 +36,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -519,6 +520,7 @@ internal fun rememberGlassImage(
                 state.value = rendered.asImageBitmap()
             }
         } catch (t: Throwable) {
+            if (t is CancellationException) throw t
             t.printStackTrace()
         }
     }
